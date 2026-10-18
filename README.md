@@ -74,7 +74,8 @@ Folder `vendor/` sudah disertakan, jadi composer tidak perlu dijalankan di serve
    `https://dasbor.elkhair.my.id/pemeliharaan/<TOKEN>/migrasi` → `/seed` → `/snapshot` → `/sinkron` → `/cache`
 6. **Cron** (cPanel → Cron Jobs, tiap menit):
    `/usr/local/bin/php /home/elkhair1/dasbor/artisan schedule:run >> /dev/null 2>&1`
-7. Setelah berjalan, kosongkan `MAINTENANCE_TOKEN` di `.env` agar rute pemeliharaan nonaktif.
+7. Edge cache DomaiNesia dapat menyimpan halaman `/` lama selama beberapa menit setelah pemasangan.
+8. Setelah berjalan, kosongkan `MAINTENANCE_TOKEN` di `.env` agar rute pemeliharaan nonaktif.
 
 ## Uji lokal
 ```bash
