@@ -193,9 +193,31 @@ class DasborController extends Controller
 
     private function geo(): array
     {
-        $f = storage_path('app/geo/kab-'.self::PROV.'.geojson');
+        $f = self::geoFile('kab');
 
-        return is_file($f) ? json_decode(file_get_contents($f), true) : ['type' => 'FeatureCollection', 'features' => []];
+        return $f ? json_decode(file_get_contents($f), true) : ['type' => 'FeatureCollection', 'features' => []];
+    }
+
+    /** Batas wilayah BIG (prov/kab/kec/desa) yang disederhanakan: database/geo/{level}-75.geojson */
+    private static function geoFile(string $level): ?string
+    {
+        foreach ([database_path("geo/$level-".self::PROV.'.geojson'), storage_path("app/geo/$level-".self::PROV.'.geojson')] as $f) {
+            if (is_file($f)) {
+                return $f;
+            }
+        }
+
+        return null;
+    }
+
+    /** GET /api/v1/geo/{level} — level: kab | kec | desa */
+    public function geoLevel(string $level)
+    {
+        abort_unless(in_array($level, ['kab', 'kec', 'desa'], true), 404);
+        $f = self::geoFile($level);
+        abort_unless($f, 404);
+
+        return response()->file($f, ['Content-Type' => 'application/geo+json', 'Cache-Control' => 'public, max-age=86400']);
     }
 
     private function etag(Request $r, array $data): JsonResponse

@@ -292,16 +292,26 @@ const save = () => store.set("gtlo-dash",{module:st.module,view:st.view,scope:st
 echarts.registerMap("gtlo", DATA.geo);
 let ch = echarts.init($("#chart"), null, {renderer:"canvas"});
 new ResizeObserver(()=>ch.resize()).observe($("#chart"));
-const geoBox = {}; (function(){ for(const f of DATA.geo.features){ let b=[180,90,-180,-90];
-  const walk=c=>{ if(typeof c[0]==="number"){ b=[Math.min(b[0],c[0]),Math.min(b[1],c[1]),Math.max(b[2],c[0]),Math.max(b[3],c[1])]; } else c.forEach(walk); };
-  walk(f.geometry.coordinates); geoBox[f.properties.id]=b; } })();
+/* Batas wilayah BIG: kab dimuat bersama data; kecamatan & desa dimuat saat pertama dibutuhkan. */
+const GEO = {}, geoBox = {}, geoPending = {};
+function indexGeo(level, fc){ GEO[level]=fc; echarts.registerMap("gtlo-"+level, fc);
+  for(const f of fc.features){ let b=[180,90,-180,-90];
+    const walk=c=>{ if(typeof c[0]==="number"){ b=[Math.min(b[0],c[0]),Math.min(b[1],c[1]),Math.max(b[2],c[0]),Math.max(b[3],c[1])]; } else c.forEach(walk); };
+    walk(f.geometry.coordinates); geoBox[f.properties.id]=b; } }
+indexGeo("kab", DATA.geo);
+function needGeo(level){
+  if(GEO[level]) return true;
+  if(!geoPending[level]) geoPending[level] = fetch("/api/v1/geo/"+level).then(r=>{ if(!r.ok) throw 0; return r.json(); })
+    .then(fc=>{ indexGeo(level, fc); render(); }).catch(()=>{ geoPending[level]="gagal"; });
+  return false;
+}
+function pad(b,p){ const w=(b[2]-b[0])*p, h=(b[3]-b[1])*p; return [b[0]-w,b[1]-h,b[2]+w,b[3]+h]; }
 function boxFor(id){ const l=LEVEL_OF(id);
-  if(l==="prov"){ const bs=Object.values(geoBox); return [Math.min(...bs.map(b=>b[0]))-.05,Math.min(...bs.map(b=>b[1]))-.05,Math.max(...bs.map(b=>b[2]))+.05,Math.max(...bs.map(b=>b[3]))+.05]; }
-  const kab = l==="pasar"?PASAR[id].kab:id.slice(0,4); let b=[...geoBox[kab]];
-  if(l==="kec"||l==="desa"){ const pts=[]; for(const d of DATA.desa){ if(!d.id.startsWith(id)) continue; const v=DATA.bsps[d.id]; if(v&&v[5]!=null) pts.push([v[6],v[5]]); }
-    if(pts.length){ const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]); const pad=l==="desa"?0.03:0.05;
-      b=[Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)+pad,Math.max(...ys)+pad]; } }
-  return b; }
+  if(l==="prov"){ const bs=DATA.kab.map(k=>geoBox[k.id]).filter(Boolean); return pad([Math.min(...bs.map(b=>b[0])),Math.min(...bs.map(b=>b[1])),Math.max(...bs.map(b=>b[2])),Math.max(...bs.map(b=>b[3]))],.03); }
+  if(l==="pasar") return pad(geoBox[PASAR[id].kab],.04);
+  if(l==="kab") return pad(geoBox[id],.04);
+  if(l==="kec") return geoBox[id] ? pad(geoBox[id],.06) : pad(geoBox[id.slice(0,4)],.04);
+  const kec=id.slice(0,6); return geoBox[kec] ? pad(geoBox[kec],.06) : (geoBox[id] ? pad(geoBox[id],.4) : pad(geoBox[id.slice(0,4)],.04)); }
 function themeBase(){ return { textStyle:{fontFamily:css("--f-body"), color:css("--ink-2")},
   tooltip:{ backgroundColor:css("--panel"), borderColor:css("--line-2"), textStyle:{color:css("--ink"),fontSize:13}, extraCssText:"box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:6px" } }; }
 const tipRow = (sw,label,val) => `<div style="display:flex;gap:10px;justify-content:space-between;align-items:center"><span style="display:inline-flex;gap:6px;align-items:center">${sw?`<i style="width:9px;height:9px;border-radius:2px;background:${sw};display:inline-block"></i>`:""}${label}</span><b style="font-variant-numeric:tabular-nums">${val}</b></div>`;
@@ -353,38 +363,45 @@ function renderBsps(){
 }
 function bspsMap(id){
   const l=LEVEL_OF(id), base=themeBase();
-  const kabVals = DATA.kab.map(k=>({name:k.id, value:bsps(k.id).t}));
-  const maxK = Math.max(...kabVals.map(k=>k.value));
+  let mapLevel = l==="prov" ? "kab" : l==="kab" ? "kec" : "desa";
+  if(mapLevel!=="kab" && !needGeo(mapLevel)) mapLevel="kab";   // sementara batas dimuat
+  const scopePrefix = l==="prov" ? "75" : l==="kab" ? id : id.slice(0,6);
+  const feats = GEO[mapLevel].features.map(f=>f.properties.id);
+  const inScope = f => mapLevel==="kab" ? true : f.startsWith(scopePrefix);
+  const vals = feats.map(f=>({name:f, value: inScope(f) ? bsps(f).t : null}));
+  const maxV = Math.max(1, ...vals.filter(v=>v.value!=null).map(v=>v.value));
+  const showLabel = mapLevel!=="kab" && vals.filter(v=>v.value!=null).length<=30;
+  const regions = feats.map(f=>{ const r={name:f}; const isSel = l==="desa" && f===id;
+    if(!inScope(f)) r.itemStyle={opacity:.28};
+    if(isSel) r.itemStyle={borderColor:css("--accent"), borderWidth:3};
+    if(showLabel && inScope(f)) r.label={show:true, color:css("--ink"), fontSize:10, formatter:()=>nodeName(f).replace(/^Kec\. /,"")};
+    return r; });
   let pts=[];
-  const ptLvl = l==="prov"?"kec":"desa";
-  if(ptLvl==="kec"){ for(const k of DATA.kec){ const a=bsps(k.id); if(a.t&&a.lat!=null) pts.push({id:k.id,name:"Kec. "+k.name,lat:a.lat,lng:a.lng,a}); } }
-  else { for(const d of DATA.desa){ if(!d.id.startsWith(l==="desa"?id.slice(0,6):id)) continue; const v=DATA.bsps[d.id]; if(!v||v[5]==null) continue;
-    pts.push({id:d.id,name:d.name,lat:v[5],lng:v[6],a:{t:v[0],p0:v[1],p30:v[2],p100:v[3],px:v[4]}}); } }
+  if(l==="prov"){ for(const k of DATA.kec){ const a=bsps(k.id); if(a.t&&a.lat!=null) pts.push({id:k.id,name:"Kec. "+k.name,lat:a.lat,lng:a.lng,a}); } }
   const maxT = Math.max(1,...pts.map(p=>p.a.t));
   const box = boxFor(id);
-  const geo = {map:"gtlo", roam:true, nameProperty:"id", aspectScale:1, layoutCenter:["50%","50%"], layoutSize:"100%",
-    itemStyle:{areaColor:css("--nodata"), borderColor:css("--panel"), borderWidth:1.5},
-    emphasis:{itemStyle:{areaColor:css("--accent-soft")}, label:{show:false}}, select:{disabled:true}, label:{show:false},
-    regions: DATA.kab.map(k=>({name:k.id, itemStyle:{ opacity: (l==="prov"||id.startsWith(k.id)||(l!=="prov"&&id.slice(0,4)===k.id))?1:.35 }}))};
-  if(box) geo.boundingCoords=[[box[0],box[3]],[box[2],box[1]]];
+  const geo = {map:"gtlo-"+mapLevel, roam:true, nameProperty:"id", aspectScale:1, layoutCenter:["50%","50%"], layoutSize:"100%",
+    boundingCoords:[[box[0],box[3]],[box[2],box[1]]],
+    itemStyle:{areaColor:css("--nodata"), borderColor:css("--panel"), borderWidth: mapLevel==="desa"?.6:1.2},
+    emphasis:{itemStyle:{areaColor:css("--accent-soft")}, label:{show:false}}, select:{disabled:true}, label:{show:false}, regions};
   ch.setOption({...base, animationDurationUpdate:400,
     tooltip:{...base.tooltip, trigger:"item", formatter:p=>{
-      if(p.seriesType==="map"){ const a=bsps(p.name); return `<b>${KAB[p.name].name}</b>`+tipRow(null,"Penerima",fmt(a.t)+" unit")+tipRow(null,"Selesai 100%",fmt(a.p100))+tipRow(null,"Desa penerima",fmt(a.desaP)); }
+      if(p.seriesType==="map"){ const a=bsps(p.name); const lv=LEVEL_OF(p.name);
+        return `<b>${esc(nodeName(p.name))}</b><div style="color:${css("--muted")};font-size:11px">${p.name}</div>`+tipRow(null,"Penerima",fmt(a.t)+" unit")+(a.t?PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(a[k]))).join(""):"")+(lv!=="desa"?tipRow(null,"Desa penerima",`${fmt(a.desaP)} / ${fmt(a.desaN)}`):""); }
       const d=p.data.raw; return `<b>${esc(d.name)}</b>`+tipRow(null,"Penerima",fmt(d.a.t)+" unit")+PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(d.a[k]))).join(""); }},
-    visualMap:{type:"continuous", min:0, max:maxK, seriesIndex:0, left:16, bottom:16, itemWidth:12, itemHeight:110, text:[fmt(maxK)+" unit","0"],
-      textStyle:{color:css("--muted"),fontSize:11}, inRange:{color:[css("--seq-1"),css("--seq-2"),css("--seq-3"),css("--seq-4")]}, calculable:false},
+    visualMap:{type:"continuous", min:0, max:maxV, seriesIndex:0, left:16, bottom:16, itemWidth:12, itemHeight:110, text:[fmt(maxV)+" unit","0"],
+      textStyle:{color:css("--muted"),fontSize:11}, inRange:{color:[css("--seq-0"),css("--seq-1"),css("--seq-2"),css("--seq-3"),css("--seq-4")]}, calculable:false},
     geo,
     series:[
-      {type:"map", geoIndex:0, data:kabVals},
+      {type:"map", geoIndex:0, data:vals},
       {type:"scatter", coordinateSystem:"geo", data:pts.map(p=>({name:p.name, value:[p.lng,p.lat,p.a.t], raw:p,
           itemStyle:{color: css(p.a.t && p.a.p100/p.a.t>=.5 ? "--ord-2" : p.a.p0/p.a.t>=.5 ? "--ord-0" : "--ord-1")}})),
-        symbolSize:v=>6+Math.sqrt(v[2]/maxT)*26, itemStyle:{borderColor:css("--panel"), borderWidth:2, opacity:.95},
+        symbolSize:v=>6+Math.sqrt(v[2]/maxT)*22, itemStyle:{borderColor:css("--panel"), borderWidth:2, opacity:.95},
         emphasis:{scale:1.15, label:{show:true, formatter:p=>p.name, position:"top", color:css("--ink"), fontSize:12, fontWeight:600}},
-        label:{show: pts.length<=25, formatter:p=>p.name, position:"right", color:css("--ink-2"), fontSize:11},
-        labelLayout:{hideOverlap:true}, zlevel:2}
+        label:{show:false}, zlevel:2}
     ]}, true);
   ch.off("click"); ch.on("click", p=>{
-    if(p.seriesType==="map"){ if(LEVEL_OF(st.scope)==="prov") go(p.name); else if(!st.scope.startsWith(p.name)) go(p.name); return; }
+    if(p.seriesType==="map"){ if(p.name && p.name!==st.scope) go(p.name); return; }
     if(p.data?.raw) go(p.data.raw.id); });
 }
 function bspsRows(kids){ return kids.map(k=>{ const a=bsps(k); return {id:k, name:nodeName(k), ...a, sel: a.t?pct(a.p100,a.t):-1}; }); }
@@ -441,7 +458,7 @@ function bspsSide(id, kids){
   const behind = bspsRows(kids).filter(r=>r.t>=5&&r.p0>0).sort((a,b)=>pct(b.p0,b.t)-pct(a.p0,a.t)).slice(0,4);
   $("#side").innerHTML = `
   <div class="panel"><h3>Keterangan progres fisik</h3><div class="legend">${PROG.map(([,lab,c])=>`<div><i class="sw" style="background:var(${c})"></i>${lab}</div>`).join("")}
-   ${st.view==="peta"?`<div style="margin-top:6px;color:var(--muted);font-size:.78rem">Warna kab/kota = jumlah unit. Lingkaran = ${LEVEL_OF(id)==="prov"?"kecamatan":"desa/kelurahan"}, ukuran sebanding jumlah unit, warna = progres dominan.</div>`:""}</div></div>
+   ${st.view==="peta"?`<div style="margin-top:6px;color:var(--muted);font-size:.78rem">${LEVEL_OF(id)==="prov"?"Warna kab/kota = jumlah unit. Lingkaran = kecamatan, ukuran sebanding jumlah unit, warna = progres dominan.":"Warna wilayah = jumlah unit penerima. Batas wilayah: BIG (Juni 2023)."}</div>`:""}</div></div>
   ${top.length?`<div class="panel"><h3>Penerima terbanyak</h3><div class="rank">${top.map(r=>`<button data-go="${r.id}"><span>${esc(r.name)}</span><span class="num">${fmt(r.t)}</span></button>`).join("")}</div></div>`:""}
   ${behind.length?`<div class="panel"><h3>Perlu perhatian · porsi 0% tertinggi</h3><div class="rank">${behind.map(r=>`<button data-go="${r.id}"><span>${esc(r.name)}</span><span class="num up">${pct(r.p0,r.t).toLocaleString("id-ID",{maximumFractionDigits:0})}%</span></button>`).join("")}</div></div>`:""}
   ${connPanel()}`;

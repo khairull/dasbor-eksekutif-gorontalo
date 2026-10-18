@@ -15,6 +15,7 @@ Laravel 13 (PHP ≥ 8.3). Menarik data terbuka dan API bertoken ke database, lal
 | API v1 | `app/Http/Controllers/Api/DasborController.php`, `routes/api.php` |
 | Panel admin konektor | `/admin` — `app/Http/Controllers/AdminController.php` |
 | Dasbor | `public/dasbor.html` (dimuat di `/`) |
+| Batas wilayah BIG (kab, kecamatan, desa), disederhanakan | `database/geo/*.geojson`, dibangun dengan `database/geo/build_batas.py` |
 | Snapshot awal (18 Okt 2026) | `database/snapshot/gorontalo-2026-10-18.json` |
 | Server tiruan untuk uji | `tests/mock/mock_sources.py` |
 
@@ -35,6 +36,7 @@ Laravel 13 (PHP ≥ 8.3). Menarik data terbuka dan API bertoken ke database, lal
 | `GET /api/v1/harga?node=7571&variant=52` | Deret harga (node: `75`, kode kab/kota, `P{id pasar}`) |
 | `GET /api/v1/cari?q=limboto` | Pencarian wilayah, pasar, komoditas, kode wilayah |
 | `GET /api/v1/indikator?metrik=...&kode=75` | Data dari konektor API bertoken |
+| `GET /api/v1/geo/{kab\|kec\|desa}` | Batas wilayah GeoJSON (BIG, Juni 2023; 729 desa cocok dengan kode Kemendagri) |
 
 ## Penjadwalan
 Satu cron per menit menjalankan `schedule:run`. Jadwal tiap konektor diatur di panel admin (ekspresi cron, WITA):
