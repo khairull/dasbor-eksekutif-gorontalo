@@ -123,6 +123,7 @@ html.wall .stage{height:68vh}
 .chart{position:absolute;inset:0}
 .map{position:absolute;inset:0;background:var(--panel-2);border-radius:0 0 var(--r) var(--r)}
 .leaflet-container{font-family:var(--f-body);background:var(--panel-2)}
+.dark-tiles .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.8) contrast(.9) saturate(.5)}
 .leaflet-tooltip.tip{background:var(--panel);color:var(--ink);border:1px solid var(--line-2);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px 10px;font-size:13px;min-width:170px}
 .leaflet-tooltip.tip::before{display:none}
 .leaflet-tooltip.lbl{background:transparent;border:0;box-shadow:none;color:var(--ink);font-size:11px;font-weight:600;padding:0;text-shadow:0 0 3px var(--panel),0 0 3px var(--panel),0 0 2px var(--panel)}
@@ -401,8 +402,9 @@ function ensureMap(){
   const dark = isDark();
   if(LM.theme!==dark){
     if(LM.base) LM.map.removeLayer(LM.base);
-    LM.base = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`, {subdomains:"abcd", maxZoom:19,
-      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> · Batas: BIG'}).addTo(LM.map);
+    LM.base = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">Kontributor OpenStreetMap</a> · Batas: BIG'}).addTo(LM.map);
+    LM.map.getContainer().classList.toggle("dark-tiles", dark);
     LM.base.bringToBack(); LM.theme = dark;
   }
   LM.layers.clearLayers();
