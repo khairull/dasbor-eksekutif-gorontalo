@@ -5,7 +5,6 @@
 <title>Konektor Data · Dasbor Eksekutif</title>
 <style>
 :root{--bg:#f3f4f1;--panel:#fcfcfb;--line:#dfe1da;--ink:#121513;--ink2:#4b514c;--muted:#7c827b;--accent:#0e7c66;--good:#0a7d0a;--crit:#c03535}
-@media (prefers-color-scheme:dark){:root{--bg:#0c0f0e;--panel:#151917;--line:#2a302d;--ink:#eef1ee;--ink2:#bfc6c0;--muted:#8a918b;--accent:#2fbf9c;--good:#2bb52b;--crit:#e66767;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px max(16px,env(safe-area-inset-left))}
 .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 h1{margin:0;font-size:1.4rem}a{color:var(--accent)}

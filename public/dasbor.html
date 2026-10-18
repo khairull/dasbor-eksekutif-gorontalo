@@ -23,24 +23,8 @@
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
   --r:6px; --base:15px;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0c0f0e; --panel:#151917; --panel-2:#1c211f; --line:#2a302d; --line-2:#3a413d;
-  --ink:#eef1ee; --ink-2:#bfc6c0; --muted:#8a918b;
-  --accent:#2fbf9c; --accent-ink:#04110d; --accent-soft:#12302a;
-  --good-ink:#0ca30c; --warn:#fab219;
-  --seq-0:#18201f; --seq-1:#123058; --seq-2:#184f95; --seq-3:#2a78d6; --seq-4:#5598e7; --seq-5:#b7d3f6;
-  --ord-0:#256abf; --ord-1:#5598e7; --ord-2:#9ec5f4; --ord-x:#5c5b56;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sref:#898781;
-  --nodata:#222826; color-scheme:dark }}
-:root[data-theme="dark"]{
-  --bg:#0c0f0e; --panel:#151917; --panel-2:#1c211f; --line:#2a302d; --line-2:#3a413d;
-  --ink:#eef1ee; --ink-2:#bfc6c0; --muted:#8a918b;
-  --accent:#2fbf9c; --accent-ink:#04110d; --accent-soft:#12302a;
-  --good-ink:#0ca30c; --warn:#fab219;
-  --seq-0:#18201f; --seq-1:#123058; --seq-2:#184f95; --seq-3:#2a78d6; --seq-4:#5598e7; --seq-5:#b7d3f6;
-  --ord-0:#256abf; --ord-1:#5598e7; --ord-2:#9ec5f4; --ord-x:#5c5b56;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sref:#898781;
-  --nodata:#222826; color-scheme:dark }
+/* Tema terang saja (permintaan pengguna): blok tema gelap dihapus. */
+:root{color-scheme:light}
 
 html{font-size:var(--base)}
 body{margin:0}
@@ -388,7 +372,7 @@ function renderBsps(){
 }
 /* ---------- peta Leaflet ---------- */
 const LM = {map:null, base:null, layers:null, legend:null, theme:null};
-function isDark(){ return getComputedStyle(document.body).colorScheme.includes("dark") || css("--bg").toLowerCase()==="#0c0f0e"; }
+function isDark(){ return false; }
 function ensureMap(){
   if(!LM.map){
     LM.map = L.map("map", {zoomControl:true, attributionControl:true, preferCanvas:false, minZoom:6, maxZoom:17, zoomSnap:.25});
@@ -713,7 +697,6 @@ $("#foot").innerHTML = `<span>BSPS: <a href="${DATA.meta.sources.bsps.url}" targ
  <span>Batas wilayah: BIG (disederhanakan). Kode wilayah: Kemendagri.</span>`;
 
 /* tema berubah → gambar ulang grafik dengan token baru */
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>render());
 new MutationObserver(()=>render()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 render();
 }
