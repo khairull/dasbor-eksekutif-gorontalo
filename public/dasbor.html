@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Dasbor Eksekutif Gorontalo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css?v=1.9.4">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: ruang kendali — bilah perintah (lingkup + pencarian + mode tampilan) di atas, ringkasan angka, lalu satu panel kerja besar yang berganti peta/tabel/grafik. */
@@ -120,6 +121,22 @@ html.wall .wrap{max-width:none}
 .stage{height:min(66vh,620px);min-height:380px;position:relative}
 html.wall .stage{height:68vh}
 .chart{position:absolute;inset:0}
+.map{position:absolute;inset:0;background:var(--panel-2);border-radius:0 0 var(--r) var(--r)}
+.leaflet-container{font-family:var(--f-body);background:var(--panel-2)}
+.leaflet-tooltip.tip{background:var(--panel);color:var(--ink);border:1px solid var(--line-2);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px 10px;font-size:13px;min-width:170px}
+.leaflet-tooltip.tip::before{display:none}
+.leaflet-tooltip.lbl{background:transparent;border:0;box-shadow:none;color:var(--ink);font-size:11px;font-weight:600;padding:0;text-shadow:0 0 3px var(--panel),0 0 3px var(--panel),0 0 2px var(--panel)}
+.leaflet-tooltip.lbl::before{display:none}
+.leaflet-tooltip.price{background:var(--panel);color:var(--ink);border:1px solid var(--line-2);border-radius:4px;font-size:12px;font-weight:600;padding:3px 7px;box-shadow:none}
+.leaflet-tooltip.price::before{display:none}
+.maplegend{background:var(--panel);color:var(--ink-2);border:1px solid var(--line-2);border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.3}
+.maplegend.info{max-width:260px}
+.maplegend .ramp{width:150px;height:10px;border-radius:2px;margin:4px 0 2px}
+.maplegend .ends{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+.leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 85%,transparent)!important;color:var(--muted)!important}
+.leaflet-control-attribution a{color:var(--ink-2)!important}
+.leaflet-bar a{background:var(--panel);color:var(--ink);border-color:var(--line-2)}
+.leaflet-bar a:hover{background:var(--panel-2)}
 .tablebox{position:absolute;inset:0;overflow:auto}
 table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
 th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-weight:600;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
@@ -205,6 +222,7 @@ footer{font-size:.76rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 1
       <div class="ph"><div><h2 id="ptitle"></h2><p id="psub"></p></div><div id="pextra"></div></div>
       <div class="stage">
         <div class="chart" id="chart"></div>
+        <div class="map" id="map" hidden></div>
         <div class="tablebox" id="tablebox" hidden></div>
       </div>
     </section>
@@ -214,6 +232,7 @@ footer{font-size:.76rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 1
   <footer id="foot"></footer>
 </div>
 
+<script src="/vendor/leaflet/leaflet.js?v=1.9.4"></script>
 <script src="/vendor/echarts.min.js?v=5.5.1"></script>
 <script>
 
@@ -310,8 +329,11 @@ function boxFor(id){ const l=LEVEL_OF(id);
   if(l==="prov"){ const bs=DATA.kab.map(k=>geoBox[k.id]).filter(Boolean); return pad([Math.min(...bs.map(b=>b[0])),Math.min(...bs.map(b=>b[1])),Math.max(...bs.map(b=>b[2])),Math.max(...bs.map(b=>b[3]))],.03); }
   if(l==="pasar") return pad(geoBox[PASAR[id].kab],.04);
   if(l==="kab") return pad(geoBox[id],.04);
-  if(l==="kec") return geoBox[id] ? pad(geoBox[id],.06) : pad(geoBox[id.slice(0,4)],.04);
-  const kec=id.slice(0,6); return geoBox[kec] ? pad(geoBox[kec],.06) : (geoBox[id] ? pad(geoBox[id],.4) : pad(geoBox[id.slice(0,4)],.04)); }
+  const kec=id.slice(0,6);
+  if(GEO.desa){ const bs=GEO.desa.features.filter(f=>f.properties.id.startsWith(kec)).map(f=>geoBox[f.properties.id]);
+    if(bs.length) return pad([Math.min(...bs.map(b=>b[0])),Math.min(...bs.map(b=>b[1])),Math.max(...bs.map(b=>b[2])),Math.max(...bs.map(b=>b[3]))],.08); }
+  if(geoBox[kec]) return pad(geoBox[kec],.06);
+  return pad(geoBox[id.slice(0,4)],.04); }
 function themeBase(){ return { textStyle:{fontFamily:css("--f-body"), color:css("--ink-2")},
   tooltip:{ backgroundColor:css("--panel"), borderColor:css("--line-2"), textStyle:{color:css("--ink"),fontSize:13}, extraCssText:"box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:6px" } }; }
 const tipRow = (sw,label,val) => `<div style="display:flex;gap:10px;justify-content:space-between;align-items:center"><span style="display:inline-flex;gap:6px;align-items:center">${sw?`<i style="width:9px;height:9px;border-radius:2px;background:${sw};display:inline-block"></i>`:""}${label}</span><b style="font-variant-numeric:tabular-nums">${val}</b></div>`;
@@ -327,10 +349,12 @@ function render(){
   $("#m-harga").setAttribute("aria-pressed", st.module==="harga");
   for(const v of ["peta","tabel","grafik"]) $("#v-"+v).setAttribute("aria-pressed", st.view===v);
   renderCrumbs();
-  const isTable = st.view==="tabel";
-  $("#tablebox").hidden = !isTable; $("#chart").style.visibility = isTable?"hidden":"visible";
+  const isTable = st.view==="tabel", isMap = st.view==="peta";
+  $("#tablebox").hidden = !isTable; $("#map").hidden = !isMap;
+  $("#chart").style.visibility = st.view==="grafik" ? "visible" : "hidden";
   if(st.module==="bsps") renderBsps(); else renderHarga();
-  if(!isTable) ch.resize();
+  if(st.view==="grafik") ch.resize();
+  if(isMap && LM.map) setTimeout(()=>LM.map.invalidateSize(),0);
 }
 function renderCrumbs(){
   const c = chain(st.scope);
@@ -361,48 +385,75 @@ function renderBsps(){
   else bspsChart(id, kids);
   bspsSide(id, kids);
 }
+/* ---------- peta Leaflet ---------- */
+const LM = {map:null, base:null, layers:null, legend:null, theme:null};
+function isDark(){ return getComputedStyle(document.body).colorScheme.includes("dark") || css("--bg").toLowerCase()==="#0c0f0e"; }
+function ensureMap(){
+  if(!LM.map){
+    LM.map = L.map("map", {zoomControl:true, attributionControl:true, preferCanvas:false, minZoom:6, maxZoom:17, zoomSnap:.25});
+    LM.map.attributionControl.setPrefix(false);
+    LM.layers = L.layerGroup().addTo(LM.map);
+    LM.info = L.control({position:"topright"});
+    LM.info.onAdd = ()=>{ const d=L.DomUtil.create("div","maplegend info"); L.DomEvent.disableClickPropagation(d); return d; };
+    LM.info.addTo(LM.map);
+    new ResizeObserver(()=>LM.map.invalidateSize()).observe($("#map"));
+  }
+  const dark = isDark();
+  if(LM.theme!==dark){
+    if(LM.base) LM.map.removeLayer(LM.base);
+    LM.base = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`, {subdomains:"abcd", maxZoom:19,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> · Batas: BIG'}).addTo(LM.map);
+    LM.base.bringToBack(); LM.theme = dark;
+  }
+  LM.layers.clearLayers();
+  if(LM.legend){ LM.map.removeControl(LM.legend); LM.legend=null; }
+  return LM.map;
+}
+function infoSet(html){ const d=document.querySelector("#map .info"); if(!d) return;
+  d.innerHTML = html || `<span style="color:var(--muted)">Arahkan kursor ke wilayah untuk detail · klik untuk menelusuri</span>`; d.style.minWidth = html ? "200px" : ""; }
+function hex2rgb(h){ h=h.replace("#",""); if(h.length===3) h=h.split("").map(c=>c+c).join(""); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
+function ramp(stops){ const cs=stops.map(hex2rgb); return t=>{ t=Math.max(0,Math.min(1,t)); const x=t*(cs.length-1), i=Math.min(cs.length-2,Math.floor(x)), f=x-i;
+  const c=cs[i].map((v,k)=>Math.round(v+(cs[i+1][k]-v)*f)); return `rgb(${c.join(",")})`; }; }
+function addLegend(title, lo, hi, stops, fmtFn){
+  LM.legend = L.control({position:"bottomleft"});
+  LM.legend.onAdd = ()=>{ const d=L.DomUtil.create("div","maplegend");
+    d.innerHTML = `<b>${title}</b><div class="ramp" style="background:linear-gradient(90deg,${stops.join(",")})"></div><div class="ends"><span>${fmtFn(lo)}</span><span>${fmtFn(hi)}</span></div>`; return d; };
+  LM.legend.addTo(LM.map);
+}
+function fitTo(id){ const b=boxFor(id); LM.map.fitBounds([[b[1],b[0]],[b[3],b[2]]], {animate:false}); }
+function bspsTip(id){ const a=bsps(id), lv=LEVEL_OF(id);
+  return `<b>${esc(nodeName(id))}</b><div style="color:var(--muted);font-size:11px">${id}</div>`+tipRow(null,"Penerima",fmt(a.t)+" unit")
+    +(a.t?PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(a[k]))).join(""):"")+(lv!=="desa"?tipRow(null,"Desa penerima",`${fmt(a.desaP)} / ${fmt(a.desaN)}`):""); }
 function bspsMap(id){
-  const l=LEVEL_OF(id), base=themeBase();
+  const l=LEVEL_OF(id); ensureMap();
   let mapLevel = l==="prov" ? "kab" : l==="kab" ? "kec" : "desa";
-  if(mapLevel!=="kab" && !needGeo(mapLevel)) mapLevel="kab";   // sementara batas dimuat
+  if(mapLevel!=="kab" && !needGeo(mapLevel)) mapLevel="kab";
   const scopePrefix = l==="prov" ? "75" : l==="kab" ? id : id.slice(0,6);
-  const feats = GEO[mapLevel].features.map(f=>f.properties.id);
-  const inScope = f => mapLevel==="kab" ? true : f.startsWith(scopePrefix);
-  const vals = feats.map(f=>({name:f, value: inScope(f) ? bsps(f).t : null}));
-  const maxV = Math.max(1, ...vals.filter(v=>v.value!=null).map(v=>v.value));
-  const showLabel = mapLevel!=="kab" && vals.filter(v=>v.value!=null).length<=30;
-  const regions = feats.map(f=>{ const r={name:f}; const isSel = l==="desa" && f===id;
-    if(!inScope(f)) r.itemStyle={opacity:.28};
-    if(isSel) r.itemStyle={borderColor:css("--accent"), borderWidth:3};
-    if(showLabel && inScope(f)) r.label={show:true, color:css("--ink"), fontSize:10, formatter:()=>nodeName(f).replace(/^Kec\. /,"")};
-    return r; });
-  let pts=[];
-  if(l==="prov"){ for(const k of DATA.kec){ const a=bsps(k.id); if(a.t&&a.lat!=null) pts.push({id:k.id,name:"Kec. "+k.name,lat:a.lat,lng:a.lng,a}); } }
-  const maxT = Math.max(1,...pts.map(p=>p.a.t));
-  const box = boxFor(id);
-  const geo = {map:"gtlo-"+mapLevel, roam:true, nameProperty:"id", aspectScale:1, layoutCenter:["50%","50%"], layoutSize:"100%",
-    boundingCoords:[[box[0],box[3]],[box[2],box[1]]],
-    itemStyle:{areaColor:css("--nodata"), borderColor:css("--panel"), borderWidth: mapLevel==="desa"?.6:1.2},
-    emphasis:{itemStyle:{areaColor:css("--accent-soft")}, label:{show:false}}, select:{disabled:true}, label:{show:false}, regions};
-  ch.setOption({...base, animationDurationUpdate:400,
-    tooltip:{...base.tooltip, trigger:"item", formatter:p=>{
-      if(p.seriesType==="map"){ const a=bsps(p.name); const lv=LEVEL_OF(p.name);
-        return `<b>${esc(nodeName(p.name))}</b><div style="color:${css("--muted")};font-size:11px">${p.name}</div>`+tipRow(null,"Penerima",fmt(a.t)+" unit")+(a.t?PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(a[k]))).join(""):"")+(lv!=="desa"?tipRow(null,"Desa penerima",`${fmt(a.desaP)} / ${fmt(a.desaN)}`):""); }
-      const d=p.data.raw; return `<b>${esc(d.name)}</b>`+tipRow(null,"Penerima",fmt(d.a.t)+" unit")+PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(d.a[k]))).join(""); }},
-    visualMap:{type:"continuous", min:0, max:maxV, seriesIndex:0, left:16, bottom:16, itemWidth:12, itemHeight:110, text:[fmt(maxV)+" unit","0"],
-      textStyle:{color:css("--muted"),fontSize:11}, inRange:{color:[css("--seq-0"),css("--seq-1"),css("--seq-2"),css("--seq-3"),css("--seq-4")]}, calculable:false},
-    geo,
-    series:[
-      {type:"map", geoIndex:0, data:vals},
-      {type:"scatter", coordinateSystem:"geo", data:pts.map(p=>({name:p.name, value:[p.lng,p.lat,p.a.t], raw:p,
-          itemStyle:{color: css(p.a.t && p.a.p100/p.a.t>=.5 ? "--ord-2" : p.a.p0/p.a.t>=.5 ? "--ord-0" : "--ord-1")}})),
-        symbolSize:v=>6+Math.sqrt(v[2]/maxT)*22, itemStyle:{borderColor:css("--panel"), borderWidth:2, opacity:.95},
-        emphasis:{scale:1.15, label:{show:true, formatter:p=>p.name, position:"top", color:css("--ink"), fontSize:12, fontWeight:600}},
-        label:{show:false}, zlevel:2}
-    ]}, true);
-  ch.off("click"); ch.on("click", p=>{
-    if(p.seriesType==="map"){ if(p.name && p.name!==st.scope) go(p.name); return; }
-    if(p.data?.raw) go(p.data.raw.id); });
+  const inScope = f => mapLevel==="kab" || f.startsWith(scopePrefix);
+  const fc = GEO[mapLevel];
+  const vals = fc.features.filter(f=>inScope(f.properties.id)).map(f=>bsps(f.properties.id).t);
+  const maxV = Math.max(1, ...vals);
+  const stops = ["--seq-0","--seq-1","--seq-2","--seq-3","--seq-4"].map(css), col = ramp(stops);
+  const line = css("--panel"), accent = css("--accent"), labels = mapLevel!=="kab" && vals.length<=30;
+  const geo = L.geoJSON(fc, {
+    style: f=>{ const fid=f.properties.id, ok=inScope(fid), sel=(l==="desa" && fid===id);
+      return ok ? {fillColor:col(bsps(fid).t/maxV), fillOpacity:.78, color: sel?accent:line, weight: sel?3:(mapLevel==="desa"?.8:1.2)}
+                : {fillColor:css("--nodata"), fillOpacity:.15, color:css("--line-2"), weight:.5}; },
+    onEachFeature: (f, layer)=>{ const fid=f.properties.id;
+      if(labels && inScope(fid)) layer.bindTooltip(nodeName(fid).replace(/^Kec\. /,""), {permanent:true, direction:"center", className:"lbl", interactive:false});
+      layer.on({ mouseover:e=>{ e.target.setStyle({weight:2.5, color:accent}); infoSet(bspsTip(fid)); },
+                 mouseout:e=>{ geo.resetStyle(e.target); infoSet(null); },
+                 click:()=>{ if(fid!==st.scope) go(fid); } }); }
+  }).addTo(LM.layers);
+  if(l==="prov"){
+    const pts=[]; for(const k of DATA.kec){ const a=bsps(k.id); if(a.t&&a.lat!=null) pts.push({id:k.id,a}); }
+    const maxT=Math.max(1,...pts.map(p=>p.a.t));
+    for(const p of pts){ const a=p.a, c=css(a.p100/a.t>=.5?"--ord-2":a.p0/a.t>=.5?"--ord-0":"--ord-1");
+      L.circleMarker([a.lat,a.lng], {radius:4+Math.sqrt(a.t/maxT)*13, color:line, weight:1.5, fillColor:c, fillOpacity:.95})
+        .on("mouseover",()=>infoSet(bspsTip(p.id))).on("mouseout",()=>infoSet(null)).on("click",()=>go(p.id)).addTo(LM.layers); }
+  }
+  addLegend("Unit penerima BSPS", 0, maxV, stops, fmt);
+  infoSet(null); fitTo(id);
 }
 function bspsRows(kids){ return kids.map(k=>{ const a=bsps(k); return {id:k, name:nodeName(k), ...a, sel: a.t?pct(a.p100,a.t):-1}; }); }
 function sortRows(rows, cols, def){
@@ -488,31 +539,28 @@ function renderHarga(){
   hargaSide(id, node, vid, noteTxt, prov);
 }
 function hargaMap(id, vid){
-  const base=themeBase(), l=LEVEL_OF(id);
-  const kv = DATA.kab.map(k=>{ const s=S.series[k.id]?priceStat(k.id,vid):null; return {name:k.id, value:s?s.v:null}; });
-  const vals = kv.map(k=>k.value).filter(x=>x!=null);
-  const pts = DATA.sp2kp.pasar.map(p=>{ const s=priceStat("P"+p.id,vid); return {id:"P"+p.id, name:p.name, value:[p.lng,p.lat,s?s.v:null], s}; });
-  const box = boxFor(l==="prov"?"75":(l==="pasar"?id:id.slice(0,4)));
-  const geo = {map:"gtlo", roam:true, nameProperty:"id", aspectScale:1, layoutCenter:["50%","50%"], layoutSize:"100%",
-    itemStyle:{areaColor:css("--nodata"), borderColor:css("--panel"), borderWidth:1.5}, emphasis:{itemStyle:{areaColor:css("--accent-soft")},label:{show:false}}, select:{disabled:true},
-    label:{show:true, formatter:p=>{ const k=kv.find(x=>x.name===p.name); return KAB[p.name].name.replace("Kab. ","")+(k&&k.value!=null?"\n"+rp(k.value):""); }, color:css("--ink-2"), fontSize:11, lineHeight:15}};
-  if(box) geo.boundingCoords=[[box[0],box[3]],[box[2],box[1]]];
+  const l=LEVEL_OF(id); ensureMap();
+  const v = k => (S.series[k] ? priceStat(k,vid) : null);
+  const vals = DATA.kab.map(k=>v(k.id)).filter(Boolean).map(s=>s.v);
   const lo = vals.length?Math.min(...vals):0, hi = vals.length?Math.max(...vals):1;
-  ch.setOption({...base, animationDurationUpdate:400,
-    tooltip:{...base.tooltip, trigger:"item", formatter:p=>{
-      if(p.seriesType==="map"){ const s=S.series[p.name]?priceStat(p.name,vid):null; return `<b>${KAB[p.name].name}</b>`+(s?tipRow(null,VAR[vid].name,rp(s.v))+tipRow(null,"1 minggu",pctTxt(s.d7)):`<div style="color:${css("--muted")}">Belum ada pasar pantauan</div>`); }
-      const d=p.data; return `<b>${esc(d.name)}</b>`+(d.s?tipRow(null,VAR[vid].name,rp(d.s.v))+tipRow(null,"1 minggu",pctTxt(d.s.d7)):"<div>Komoditas tidak dipantau di pasar ini</div>"); }},
-    visualMap:{type:"continuous", min:lo, max:hi===lo?lo+1:hi, seriesIndex:0, left:16, bottom:16, itemWidth:12, itemHeight:100, text:[rp(hi),rp(lo)],
-      textStyle:{color:css("--muted"),fontSize:11}, inRange:{color:[css("--seq-2"),css("--seq-4")]}, outOfRange:{color:css("--nodata")}},
-    geo,
-    series:[
-      {type:"map", geoIndex:0, data:kv},
-      {type:"scatter", coordinateSystem:"geo", data:pts, symbol:"pin", symbolSize:28, zlevel:2,
-        itemStyle:{color:css("--accent"), borderColor:css("--panel"), borderWidth:1.5},
-        label:{show:true, position:"right", distance:4, formatter:p=>p.data.name.replace("Pasar ","")+(p.data.s?"  "+rp(p.data.s.v):""), color:css("--ink"), fontSize:11, fontWeight:600,
-          backgroundColor:css("--panel"), padding:[3,6], borderRadius:4, borderColor:css("--line-2"), borderWidth:1}, labelLayout:{hideOverlap:false, moveOverlap:"shiftY"}}
-    ]}, true);
-  ch.off("click"); ch.on("click", p=>{ if(p.seriesType==="map"){ go(p.name); } else if(p.data?.id){ go(p.data.id); } });
+  const stops = [css("--seq-2"), css("--seq-4")], col = ramp(stops);
+  const line=css("--panel"), accent=css("--accent");
+  const geo = L.geoJSON(GEO.kab, {
+    style: f=>{ const s=v(f.properties.id); return s ? {fillColor: col(hi===lo?.5:(s.v-lo)/(hi-lo)), fillOpacity:.75, color:line, weight:1.2}
+                                                   : {fillColor:css("--nodata"), fillOpacity:.35, color:css("--line-2"), weight:.8, dashArray:"3 3"}; },
+    onEachFeature: (f, layer)=>{ const fid=f.properties.id, s=v(fid);
+      const html=`<b>${esc(KAB[fid].name)}</b>`+(s?tipRow(null,VAR[vid].name,rp(s.v))+tipRow(null,"1 minggu",pctTxt(s.d7)):`<div style="color:var(--muted)">Belum ada pasar pantauan</div>`);
+      layer.on({mouseover:e=>{ e.target.setStyle({weight:2.5,color:accent}); infoSet(html); }, mouseout:e=>{ geo.resetStyle(e.target); infoSet(null); }, click:()=>go(fid)}); }
+  }).addTo(LM.layers);
+  const sorted = DATA.sp2kp.pasar.slice().sort((a,b)=>a.lng-b.lng);
+  for(const p of DATA.sp2kp.pasar){ const pid="P"+p.id, s=priceStat(pid,vid);
+    const near = sorted.some(q=>q!==p && Math.abs(q.lat-p.lat)<.03 && Math.abs(q.lng-p.lng)<.03), left = near && p.lat>Math.min(...sorted.filter(q=>Math.abs(q.lng-p.lng)<.03).map(q=>q.lat));
+    L.circleMarker([p.lat,p.lng], {radius:7, color:line, weight:2, fillColor:accent, fillOpacity:1})
+      .bindTooltip(`${esc(p.name.replace(/^Pasar (Rakyat )?/,""))}${s?" · "+rp(s.v):""}`, {permanent:true, direction: left?"left":"right", offset:[left?-8:8,0], className:"price"})
+      .on("click",()=>go(pid)).addTo(LM.layers); }
+  if(vals.length) addLegend(VAR[vid].name+" (Rp)", lo, hi, stops, x=>Math.round(x).toLocaleString("id-ID"));
+  infoSet(null);
+  fitTo(l==="prov"?"75":(l==="pasar"?id:id.slice(0,4)));
 }
 function spark(arr){ const xs=arr.filter(x=>x!=null); if(xs.length<2) return ""; const lo=Math.min(...xs), hi=Math.max(...xs), w=96, h=24;
   const pts=arr.map((v,i)=>v==null?null:[i/(arr.length-1)*w, hi===lo?h/2:h-2-(v-lo)/(hi-lo)*(h-4)]).filter(Boolean);
