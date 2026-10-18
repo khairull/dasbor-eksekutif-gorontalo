@@ -54,7 +54,7 @@ class DasborController extends Controller
             $anak = [];
             if ($len) {
                 $sums = $agg(DB::table('bsps_desa')->where('tahun', $tahun)->where('desa_kode', 'like', $kode.'%')
-                    ->selectRaw('SUBSTR(desa_kode,1,?) AS kode', [$len])->groupByRaw('SUBSTR(desa_kode,1,?)', [$len]))->get()->keyBy('kode');
+                    ->selectRaw("SUBSTR(desa_kode,1,{$len}) AS kode")->groupByRaw("SUBSTR(desa_kode,1,{$len})"))->get()->keyBy('kode'); // $len bilangan bulat tetap (4/6/10)
                 foreach (DB::table('wilayah')->where('induk', $kode)->orderBy('kode')->get(['kode', 'nama']) as $w) {
                     $s = $sums[$w->kode] ?? null;
                     $anak[] = ['kode' => $w->kode, 'nama' => $w->nama] + ($s ? (array) collect($s)->except('kode')->map(fn ($v) => (int) $v)->all() : ['total' => 0, 'p0' => 0, 'p30' => 0, 'p100' => 0, 'p_lain' => 0, 'desa_penerima' => 0]);
