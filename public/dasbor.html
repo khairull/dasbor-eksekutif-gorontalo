@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dasbor Eksekutif Gorontalo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ruang kendali — bilah perintah (lingkup + pencarian + mode tampilan) di atas, ringkasan angka, lalu satu panel kerja besar yang berganti peta/tabel/grafik. */
+:root{
+  --bg:#f3f4f1; --panel:#fcfcfb; --panel-2:#eef0ec; --line:#dfe1da; --line-2:#c3c6bc;
+  --ink:#121513; --ink-2:#4b514c; --muted:#7c827b;
+  --accent:#0e7c66; --accent-ink:#ffffff; --accent-soft:#d9eee8;
+  --good:#0ca30c; --good-ink:#006300; --warn:#b07800; --crit:#d03b3b;
+  --seq-0:#eef3f9; --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#5598e7; --seq-4:#256abf; --seq-5:#104281;
+  --ord-0:#86b6ef; --ord-1:#3987e5; --ord-2:#1c5cab; --ord-x:#c3c2b7;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --sref:#898781;
+  --nodata:#e6e7e2;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:6px; --base:15px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0c0f0e; --panel:#151917; --panel-2:#1c211f; --line:#2a302d; --line-2:#3a413d;
+  --ink:#eef1ee; --ink-2:#bfc6c0; --muted:#8a918b;
+  --accent:#2fbf9c; --accent-ink:#04110d; --accent-soft:#12302a;
+  --good-ink:#0ca30c; --warn:#fab219;
+  --seq-0:#18201f; --seq-1:#123058; --seq-2:#184f95; --seq-3:#2a78d6; --seq-4:#5598e7; --seq-5:#b7d3f6;
+  --ord-0:#256abf; --ord-1:#5598e7; --ord-2:#9ec5f4; --ord-x:#5c5b56;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sref:#898781;
+  --nodata:#222826; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0c0f0e; --panel:#151917; --panel-2:#1c211f; --line:#2a302d; --line-2:#3a413d;
+  --ink:#eef1ee; --ink-2:#bfc6c0; --muted:#8a918b;
+  --accent:#2fbf9c; --accent-ink:#04110d; --accent-soft:#12302a;
+  --good-ink:#0ca30c; --warn:#fab219;
+  --seq-0:#18201f; --seq-1:#123058; --seq-2:#184f95; --seq-3:#2a78d6; --seq-4:#5598e7; --seq-5:#b7d3f6;
+  --ord-0:#256abf; --ord-1:#5598e7; --ord-2:#9ec5f4; --ord-x:#5c5b56;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sref:#898781;
+  --nodata:#222826; color-scheme:dark }
+
+html{font-size:var(--base)}
+body{margin:0}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html.wall{--base:clamp(17px,1.15vw,28px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1rem;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1680px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+html.wall .wrap{max-width:none}
+
+/* Bilah perintah */
+.cmd{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 10px;
+  display:grid;grid-template-columns:auto 1fr auto;gap:10px 18px;align-items:center;border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;line-height:1.05;min-width:0}
+.brand b{font-family:var(--f-display);font-weight:700;font-size:1.55rem;letter-spacing:.01em;text-transform:uppercase}
+.brand span{font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.search{position:relative;min-width:0}
+.search input{width:100%;height:42px;border:1px solid var(--line-2);background:var(--panel);border-radius:var(--r);
+  padding:0 70px 0 38px}
+.search input::placeholder{color:var(--muted)}
+.search svg{position:absolute;left:12px;top:12px;width:18px;height:18px;color:var(--muted)}
+.search kbd{position:absolute;right:10px;top:10px;font-family:var(--f-mono);font-size:.7rem;color:var(--muted);
+  border:1px solid var(--line-2);border-radius:4px;padding:1px 6px}
+.results{position:absolute;left:0;right:0;top:46px;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r);
+  box-shadow:0 12px 32px rgba(0,0,0,.18);max-height:min(60vh,460px);overflow:auto;padding:4px}
+.res{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:4px;cursor:pointer}
+.res[aria-selected="true"],.res:hover{background:var(--panel-2)}
+.res .t{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .p{font-size:.78rem;color:var(--muted);grid-column:2}
+.res .k{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.chip{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:999px;padding:1px 8px;color:var(--ink-2);white-space:nowrap}
+.res mark{background:var(--accent-soft);color:inherit;border-radius:2px}
+.tools{display:flex;gap:6px;align-items:center}
+.iconbtn{height:38px;min-width:38px;padding:0 10px;border:1px solid var(--line-2);background:var(--panel);border-radius:var(--r);cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:.82rem}
+.iconbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.iconbtn svg{width:17px;height:17px}
+
+/* Baris lingkup */
+.scopebar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:.9rem;min-width:0}
+.crumbs button{border:0;background:none;padding:4px 6px;border-radius:4px;cursor:pointer;color:var(--ink-2)}
+.crumbs button:hover{background:var(--panel-2);color:var(--ink)}
+.crumbs .sep{color:var(--line-2)}
+.crumbs .cur{font-weight:600;color:var(--ink);padding:4px 6px}
+.lvl{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);margin-left:4px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:8px 14px;cursor:pointer;font-size:.86rem;display:inline-flex;gap:6px;align-items:center}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.seg svg{width:16px;height:16px}
+.mods{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.mods button{border:0;background:none;padding:10px 4px;margin-right:18px;cursor:pointer;font-family:var(--f-display);font-size:1.2rem;font-weight:600;
+  letter-spacing:.02em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.mods button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.mods small{font-family:var(--f-body);font-size:.68rem;letter-spacing:.04em;text-transform:none;font-weight:500;margin-left:6px;color:var(--muted)}
+
+/* Ringkasan */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--panel);padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .l{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi .v{font-family:var(--f-display);font-weight:600;font-size:2.4rem;line-height:1;letter-spacing:.01em}
+.kpi .v small{font-size:1rem;font-weight:500;color:var(--ink-2);margin-left:4px;letter-spacing:0}
+.kpi .s{font-size:.8rem;color:var(--ink-2)}
+.up{color:var(--crit)} .down{color:var(--good-ink)} .flat{color:var(--muted)}
+.delta{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Panel kerja */
+.work{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.ph{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+.ph h2{margin:0;font-size:1rem;font-weight:600;text-wrap:balance}
+.ph p{margin:0;font-size:.8rem;color:var(--muted)}
+.stage{height:min(66vh,620px);min-height:380px;position:relative}
+html.wall .stage{height:68vh}
+.chart{position:absolute;inset:0}
+.tablebox{position:absolute;inset:0;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-weight:600;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
+  padding:9px 12px;border-bottom:1px solid var(--line-2);white-space:nowrap;cursor:pointer;user-select:none}
+th.n,td.n{text-align:right}
+th[aria-sort="ascending"]::after{content:" ▲";font-size:.6rem} th[aria-sort="descending"]::after{content:" ▼";font-size:.6rem}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr{cursor:pointer} tbody tr:hover td{background:var(--panel-2)}
+tr.zero td{color:var(--muted)}
+td .code{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);display:block}
+.bar{display:flex;height:10px;border-radius:3px;overflow:hidden;min-width:120px;gap:2px;background:transparent}
+.bar i{display:block;height:100%}
+.empty{padding:40px 24px;color:var(--muted);text-align:center}
+
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.side .panel{padding:14px 16px}
+.side h3{margin:0 0 10px;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:.84rem}
+.legend div{display:flex;align-items:center;gap:8px}
+.sw{width:12px;height:12px;border-radius:3px;flex:none}
+.sw.line{height:3px;border-radius:2px;width:16px}
+.rank{display:flex;flex-direction:column;gap:2px;font-size:.86rem}
+.rank button{display:grid;grid-template-columns:1fr auto;gap:8px;text-align:left;border:0;background:none;padding:6px 6px;border-radius:4px;cursor:pointer}
+.rank button:hover{background:var(--panel-2)}
+.rank .num{font-variant-numeric:tabular-nums;font-weight:600}
+.note{font-size:.8rem;color:var(--ink-2);background:var(--panel-2);border-left:3px solid var(--warn);padding:8px 10px;border-radius:0 4px 4px 0}
+.picker{display:flex;flex-direction:column;gap:6px}
+.picker select{height:38px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--panel);padding:0 8px}
+.src{font-size:.78rem;color:var(--ink-2);display:flex;flex-direction:column;gap:8px}
+.src a{color:var(--accent)}
+.conn{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:baseline}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.tip{font-family:var(--f-body)}
+footer{font-size:.76rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px}
+
+@media (max-width:1100px){ .work{grid-template-columns:minmax(0,1fr)} .side{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))} }
+@media (max-width:760px){
+  .cmd{grid-template-columns:1fr auto} .search{grid-column:1/-1;order:3}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi .v{font-size:1.9rem}
+  .seg button{padding:8px 10px} .seg span{display:none}
+  .mods button{font-size:1rem;margin-right:12px} .mods small{display:none}
+  .brand b{font-size:1.3rem}
+  .stage{height:62vh;min-height:340px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="cmd">
+    <div class="brand"><b>Dasbor Eksekutif</b><span>Provinsi Gorontalo · data terbuka</span></div>
+    <div class="search" role="combobox" aria-haspopup="listbox" aria-expanded="false" id="searchbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="Cari desa, kecamatan, kab/kota, pasar, komoditas, atau kode wilayah" aria-label="Pencarian" aria-controls="results">
+      <kbd>/</kbd>
+      <div class="results" id="results" role="listbox" hidden></div>
+    </div>
+    <div class="tools">
+      <button class="iconbtn" id="wallBtn" aria-pressed="false" title="Mode layar besar (command center)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="1"/><path d="M8 21h8M12 17v4"/></svg><span>Layar besar</span></button>
+    </div>
+  </header>
+
+  <nav class="mods" aria-label="Modul data">
+    <button id="m-bsps" aria-pressed="true">Perumahan<small>BSPS 2026</small></button>
+    <button id="m-harga" aria-pressed="false">Harga Pangan<small>SP2KP</small></button>
+  </nav>
+
+  <div class="scopebar">
+    <div class="crumbs" id="crumbs" aria-label="Lingkup wilayah"></div>
+    <div class="seg" role="group" aria-label="Mode tampilan">
+      <button id="v-peta" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Peta</span></button>
+      <button id="v-tabel" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M3 15h18M9 4v16"/></svg><span>Tabel</span></button>
+      <button id="v-grafik" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Grafik</span></button>
+    </div>
+  </div>
+
+  <section class="kpis" id="kpis" aria-live="polite"></section>
+
+  <div class="work">
+    <section class="panel">
+      <div class="ph"><div><h2 id="ptitle"></h2><p id="psub"></p></div><div id="pextra"></div></div>
+      <div class="stage">
+        <div class="chart" id="chart"></div>
+        <div class="tablebox" id="tablebox" hidden></div>
+      </div>
+    </section>
+    <aside class="side" id="side"></aside>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js"></script>
+<script>
+
+function showState(msg){ document.querySelector("#kpis").innerHTML = '<div class="kpi" style="grid-column:1/-1"><span class="s">'+msg+'</span></div>'; }
+showState("Memuat data dari server…");
+fetch("/api/v1/dasbor",{headers:{Accept:"application/json"}})
+  .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+  .then(d=>{ if(!d.kab||!d.kab.length) throw new Error("database masih kosong — jalankan impor snapshot atau sinkron"); boot(d); })
+  .catch(e=>showState("Data belum bisa dimuat: "+e.message+". Coba muat ulang halaman."));
+function boot(DATA){
+
+/* ---------- util ---------- */
+const $ = s => document.querySelector(s);
+const fmt = n => n==null ? "–" : Number(n).toLocaleString("id-ID");
+const rp = n => n==null ? "–" : "Rp " + Math.round(n).toLocaleString("id-ID");
+const pct = (a,b) => b ? (a/b*100) : 0;
+const pctTxt = (v,d=1) => (v>0?"+":"") + v.toLocaleString("id-ID",{maximumFractionDigits:d,minimumFractionDigits:d}) + "%";
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const store = { get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d} }, set(k,v){ try{localStorage.setItem(k,JSON.stringify(v))}catch(e){} } };
+
+/* ---------- indeks wilayah ---------- */
+const KAB = Object.fromEntries(DATA.kab.map(k=>[k.id,k]));
+const KEC = Object.fromEntries(DATA.kec.map(k=>[k.id,k]));
+const DESA = Object.fromEntries(DATA.desa.map(k=>[k.id,k]));
+const PASAR = Object.fromEntries(DATA.sp2kp.pasar.map(p=>["P"+p.id,p]));
+const VAR = Object.fromEntries(DATA.sp2kp.variants.map(v=>[String(v.id),v]));
+const LEVEL_OF = id => id==="75"?"prov": id.startsWith("P")?"pasar": id.length===4?"kab": id.length===6?"kec":"desa";
+const LEVEL_NAME = {prov:"Provinsi",kab:"Kab/Kota",kec:"Kecamatan",desa:"Desa/Kel.",pasar:"Pasar"};
+function nodeName(id){ const l=LEVEL_OF(id);
+  if(l==="prov") return "Provinsi Gorontalo"; if(l==="kab") return KAB[id].name;
+  if(l==="kec") return "Kec. "+KEC[id].name; if(l==="desa") return DESA[id].name; return PASAR[id].name; }
+function parentOf(id){ const l=LEVEL_OF(id);
+  if(l==="kab") return "75"; if(l==="kec") return id.slice(0,4); if(l==="desa") return id.slice(0,6); if(l==="pasar") return PASAR[id].kab; return null; }
+function chain(id){ const c=[]; for(let x=id;x;x=parentOf(x)) c.unshift(x); return c; }
+const kidsBsps = id => { const l=LEVEL_OF(id);
+  if(l==="prov") return DATA.kab.map(k=>k.id);
+  if(l==="kab") return DATA.kec.filter(k=>k.kab===id).map(k=>k.id);
+  if(l==="kec") return DATA.desa.filter(d=>d.kec===id).map(d=>d.id); return []; };
+
+/* ---------- agregasi BSPS ---------- */
+const bspsCache = {};
+function bsps(id){
+  if(bspsCache[id]) return bspsCache[id];
+  const a={t:0,p0:0,p30:0,p100:0,px:0,desaN:0,desaP:0,lat:0,lng:0,w:0};
+  for(const d of DATA.desa){ if(!d.id.startsWith(id)) continue; a.desaN++;
+    const v=DATA.bsps[d.id]; if(!v) continue; a.desaP++;
+    a.t+=v[0];a.p0+=v[1];a.p30+=v[2];a.p100+=v[3];a.px+=v[4];
+    if(v[5]!=null){ a.lat+=v[5]*v[0]; a.lng+=v[6]*v[0]; a.w+=v[0]; } }
+  if(a.w){ a.lat/=a.w; a.lng/=a.w; } else { a.lat=a.lng=null; }
+  return bspsCache[id]=a;
+}
+
+/* ---------- harga ---------- */
+const S = DATA.sp2kp, NDATE = S.dates.length;
+const priceNode = id => { const l=LEVEL_OF(id);
+  if(l==="prov") return "75"; if(l==="pasar") return id;
+  const kab = l==="kab"?id:id.slice(0,4); return S.series[kab] ? kab : null; };
+function lastIdx(arr){ for(let i=arr.length-1;i>=0;i--) if(arr[i]!=null) return i; return -1; }
+function priceStat(node,vid){
+  const arr = S.series[node]?.[vid]; if(!arr) return null;
+  const i = lastIdx(arr); if(i<0) return null;
+  const v=arr[i]; const w = arr[Math.max(0,i-5)]; const m = arr.find(x=>x!=null);
+  return {v, date:S.dates[i], d7: w?pct(v-w,w):0, d30: m?pct(v-m,m):0, arr};
+}
+const dLabel = d => { const [y,m,dd]=d.split("-"); return +dd+" "+["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"][+m-1]; };
+
+/* ---------- state ---------- */
+const st = Object.assign({module:"bsps", view:"peta", scope:"75", vid:"52", sort:null}, store.get("gtlo-dash",{}));
+if(!(st.vid in VAR)) st.vid="52";
+if(!DESA[st.scope] && !KEC[st.scope] && !KAB[st.scope] && !PASAR[st.scope]) st.scope="75";
+(function(){ const h=location.hash.slice(1); if(h==="harga"||h==="bsps") st.module=h; if(["peta","tabel","grafik"].includes(h)) st.view=h; })();
+const save = () => store.set("gtlo-dash",{module:st.module,view:st.view,scope:st.scope,vid:st.vid});
+
+/* ---------- chart ---------- */
+echarts.registerMap("gtlo", DATA.geo);
+let ch = echarts.init($("#chart"), null, {renderer:"canvas"});
+new ResizeObserver(()=>ch.resize()).observe($("#chart"));
+const geoBox = {}; (function(){ for(const f of DATA.geo.features){ let b=[180,90,-180,-90];
+  const walk=c=>{ if(typeof c[0]==="number"){ b=[Math.min(b[0],c[0]),Math.min(b[1],c[1]),Math.max(b[2],c[0]),Math.max(b[3],c[1])]; } else c.forEach(walk); };
+  walk(f.geometry.coordinates); geoBox[f.properties.id]=b; } })();
+function boxFor(id){ const l=LEVEL_OF(id);
+  if(l==="prov"){ const bs=Object.values(geoBox); return [Math.min(...bs.map(b=>b[0]))-.05,Math.min(...bs.map(b=>b[1]))-.05,Math.max(...bs.map(b=>b[2]))+.05,Math.max(...bs.map(b=>b[3]))+.05]; }
+  const kab = l==="pasar"?PASAR[id].kab:id.slice(0,4); let b=[...geoBox[kab]];
+  if(l==="kec"||l==="desa"){ const pts=[]; for(const d of DATA.desa){ if(!d.id.startsWith(id)) continue; const v=DATA.bsps[d.id]; if(v&&v[5]!=null) pts.push([v[6],v[5]]); }
+    if(pts.length){ const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]); const pad=l==="desa"?0.03:0.05;
+      b=[Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)+pad,Math.max(...ys)+pad]; } }
+  return b; }
+function themeBase(){ return { textStyle:{fontFamily:css("--f-body"), color:css("--ink-2")},
+  tooltip:{ backgroundColor:css("--panel"), borderColor:css("--line-2"), textStyle:{color:css("--ink"),fontSize:13}, extraCssText:"box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:6px" } }; }
+const tipRow = (sw,label,val) => `<div style="display:flex;gap:10px;justify-content:space-between;align-items:center"><span style="display:inline-flex;gap:6px;align-items:center">${sw?`<i style="width:9px;height:9px;border-radius:2px;background:${sw};display:inline-block"></i>`:""}${label}</span><b style="font-variant-numeric:tabular-nums">${val}</b></div>`;
+
+/* ---------- render: KPI ---------- */
+function kpiHTML(items){ return items.map(k=>`<div class="kpi"><span class="l">${k.l}</span><span class="v">${k.v}${k.u?`<small>${k.u}</small>`:""}</span><span class="s">${k.s||"&nbsp;"}</span></div>`).join(""); }
+function deltaSpan(v){ const c = Math.abs(v)<0.05?"flat":v>0?"up":"down"; const a = Math.abs(v)<0.05?"→":v>0?"▲":"▼"; return `<span class="delta ${c}"><span style="font-size:.62em;vertical-align:.12em">${a}</span> ${pctTxt(v)}</span>`; }
+
+/* ---------- render utama ---------- */
+function render(){
+  save();
+  $("#m-bsps").setAttribute("aria-pressed", st.module==="bsps");
+  $("#m-harga").setAttribute("aria-pressed", st.module==="harga");
+  for(const v of ["peta","tabel","grafik"]) $("#v-"+v).setAttribute("aria-pressed", st.view===v);
+  renderCrumbs();
+  const isTable = st.view==="tabel";
+  $("#tablebox").hidden = !isTable; $("#chart").style.visibility = isTable?"hidden":"visible";
+  if(st.module==="bsps") renderBsps(); else renderHarga();
+  if(!isTable) ch.resize();
+}
+function renderCrumbs(){
+  const c = chain(st.scope);
+  $("#crumbs").innerHTML = c.map((id,i)=> i===c.length-1
+    ? `<span class="cur">${esc(nodeName(id))}<span class="lvl">${id==="75"?"75":id.startsWith("P")?"pasar":id}</span></span>`
+    : `<button data-go="${id}">${esc(nodeName(id))}</button><span class="sep">/</span>`).join("");
+}
+function go(id){ st.scope=id; st.sort=null; render(); }
+
+/* ===== Modul BSPS ===== */
+const PROG = [["p0","0%","--ord-0"],["p30","30%","--ord-1"],["p100","100% (selesai)","--ord-2"],["px","Progres lain","--ord-x"]];
+function renderBsps(){
+  let id = st.scope; if(LEVEL_OF(id)==="pasar"){ id = PASAR[id].kab; st.scope=id; renderCrumbs(); }
+  const a = bsps(id), l=LEVEL_OF(id);
+  $("#kpis").innerHTML = kpiHTML([
+    {l:"Penerima bantuan", v:fmt(a.t), u:"unit", s:`Tahun anggaran ${DATA.meta.sources.bsps.tahun}`},
+    {l:"Selesai 100%", v:a.t?pct(a.p100,a.t).toLocaleString("id-ID",{maximumFractionDigits:0}):"0", u:"%", s:`${fmt(a.p100)} unit rampung`},
+    {l:"Belum mulai (0%)", v:fmt(a.p0), u:"unit", s:a.t?`${pct(a.p0,a.t).toLocaleString("id-ID",{maximumFractionDigits:0})}% dari total`:"—"},
+    {l: l==="desa"?"Status desa":"Desa/kel. penerima", v: l==="desa"?(a.t?"Penerima":"Tidak ada"):fmt(a.desaP), u: l==="desa"?"":`/ ${fmt(a.desaN)}`, s: l==="desa"?DESA[id].id:`${pct(a.desaP,a.desaN).toLocaleString("id-ID",{maximumFractionDigits:0})}% desa/kelurahan tercakup`}
+  ]);
+  const kids = kidsBsps(id);
+  const childLvl = l==="prov"?"kab/kota":l==="kab"?"kecamatan":"desa/kelurahan";
+  $("#ptitle").textContent = st.view==="peta" ? `Sebaran penerima BSPS · ${nodeName(id)}` : st.view==="tabel" ? `Rincian per ${childLvl} · ${nodeName(id)}` : `Unit & progres fisik per ${childLvl}`;
+  $("#psub").textContent = l==="desa" ? "Tingkat terkecil. Data perorangan tidak ditampilkan." : `Klik wilayah untuk menelusuri ke ${childLvl}.`;
+  $("#pextra").innerHTML = "";
+  if(st.view==="peta") bspsMap(id);
+  else if(st.view==="tabel") bspsTable(id, kids);
+  else bspsChart(id, kids);
+  bspsSide(id, kids);
+}
+function bspsMap(id){
+  const l=LEVEL_OF(id), base=themeBase();
+  const kabVals = DATA.kab.map(k=>({name:k.id, value:bsps(k.id).t}));
+  const maxK = Math.max(...kabVals.map(k=>k.value));
+  let pts=[];
+  const ptLvl = l==="prov"?"kec":"desa";
+  if(ptLvl==="kec"){ for(const k of DATA.kec){ const a=bsps(k.id); if(a.t&&a.lat!=null) pts.push({id:k.id,name:"Kec. "+k.name,lat:a.lat,lng:a.lng,a}); } }
+  else { for(const d of DATA.desa){ if(!d.id.startsWith(l==="desa"?id.slice(0,6):id)) continue; const v=DATA.bsps[d.id]; if(!v||v[5]==null) continue;
+    pts.push({id:d.id,name:d.name,lat:v[5],lng:v[6],a:{t:v[0],p0:v[1],p30:v[2],p100:v[3],px:v[4]}}); } }
+  const maxT = Math.max(1,...pts.map(p=>p.a.t));
+  const box = boxFor(id);
+  const geo = {map:"gtlo", roam:true, nameProperty:"id", aspectScale:1, layoutCenter:["50%","50%"], layoutSize:"100%",
+    itemStyle:{areaColor:css("--nodata"), borderColor:css("--panel"), borderWidth:1.5},
+    emphasis:{itemStyle:{areaColor:css("--accent-soft")}, label:{show:false}}, select:{disabled:true}, label:{show:false},
+    regions: DATA.kab.map(k=>({name:k.id, itemStyle:{ opacity: (l==="prov"||id.startsWith(k.id)||(l!=="prov"&&id.slice(0,4)===k.id))?1:.35 }}))};
+  if(box) geo.boundingCoords=[[box[0],box[3]],[box[2],box[1]]];
+  ch.setOption({...base, animationDurationUpdate:400,
+    tooltip:{...base.tooltip, trigger:"item", formatter:p=>{
+      if(p.seriesType==="map"){ const a=bsps(p.name); return `<b>${KAB[p.name].name}</b>`+tipRow(null,"Penerima",fmt(a.t)+" unit")+tipRow(null,"Selesai 100%",fmt(a.p100))+tipRow(null,"Desa penerima",fmt(a.desaP)); }
+      const d=p.data.raw; return `<b>${esc(d.name)}</b>`+tipRow(null,"Penerima",fmt(d.a.t)+" unit")+PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(d.a[k]))).join(""); }},
+    visualMap:{type:"continuous", min:0, max:maxK, seriesIndex:0, left:16, bottom:16, itemWidth:12, itemHeight:110, text:[fmt(maxK)+" unit","0"],
+      textStyle:{color:css("--muted"),fontSize:11}, inRange:{color:[css("--seq-1"),css("--seq-2"),css("--seq-3"),css("--seq-4")]}, calculable:false},
+    geo,
+    series:[
+      {type:"map", geoIndex:0, data:kabVals},
+      {type:"scatter", coordinateSystem:"geo", data:pts.map(p=>({name:p.name, value:[p.lng,p.lat,p.a.t], raw:p,
+          itemStyle:{color: css(p.a.t && p.a.p100/p.a.t>=.5 ? "--ord-2" : p.a.p0/p.a.t>=.5 ? "--ord-0" : "--ord-1")}})),
+        symbolSize:v=>6+Math.sqrt(v[2]/maxT)*26, itemStyle:{borderColor:css("--panel"), borderWidth:2, opacity:.95},
+        emphasis:{scale:1.15, label:{show:true, formatter:p=>p.name, position:"top", color:css("--ink"), fontSize:12, fontWeight:600}},
+        label:{show: pts.length<=25, formatter:p=>p.name, position:"right", color:css("--ink-2"), fontSize:11},
+        labelLayout:{hideOverlap:true}, zlevel:2}
+    ]}, true);
+  ch.off("click"); ch.on("click", p=>{
+    if(p.seriesType==="map"){ if(LEVEL_OF(st.scope)==="prov") go(p.name); else if(!st.scope.startsWith(p.name)) go(p.name); return; }
+    if(p.data?.raw) go(p.data.raw.id); });
+}
+function bspsRows(kids){ return kids.map(k=>{ const a=bsps(k); return {id:k, name:nodeName(k), ...a, sel: a.t?pct(a.p100,a.t):-1}; }); }
+function sortRows(rows, cols, def){
+  const s = st.sort || def; const c = cols.find(c=>c.k===s.k); if(!c) return rows;
+  return rows.slice().sort((a,b)=>{ const x=c.get(a), y=c.get(b); return (typeof x==="string"? x.localeCompare(y): x-y) * (s.dir==="asc"?1:-1); });
+}
+function tableHTML(cols, rows, rowAttr){
+  const s = st.sort || {};
+  return `<table><thead><tr>${cols.map(c=>`<th class="${c.n?"n":""}" data-sort="${c.k}" aria-sort="${s.k===c.k?(s.dir==="asc"?"ascending":"descending"):"none"}">${c.h}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map(r=>`<tr ${rowAttr(r)}>${cols.map(c=>`<td class="${c.n?"n":""}">${c.cell(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function progBar(a){ if(!a.t) return `<span class="flat">—</span>`; return `<div class="bar" title="0%: ${a.p0} · 30%: ${a.p30} · 100%: ${a.p100} · lain: ${a.px}">${PROG.map(([k,,c])=>a[k]?`<i style="width:${a[k]/a.t*100}%;background:var(${c})"></i>`:"").join("")}</div>`; }
+function bspsTable(id, kids){
+  const box=$("#tablebox");
+  if(!kids.length){ const a=bsps(id); box.innerHTML = `<div class="empty"><p><b>${esc(nodeName(id))}</b> adalah tingkat terkecil.</p>${a.t?`<p>${fmt(a.t)} unit penerima BSPS: ${PROG.map(([k,lab])=>`${lab} ${fmt(a[k])}`).join(" · ")}</p>`:"<p>Tidak ada penerima BSPS tercatat pada tahun anggaran ini.</p>"}</div>`; return; }
+  const cols=[
+    {k:"name",h:"Wilayah",get:r=>r.name,cell:r=>`${esc(r.name)}<span class="code">${r.id}</span>`},
+    {k:"t",h:"Unit",n:1,get:r=>r.t,cell:r=>fmt(r.t)},
+    {k:"p0",h:"0%",n:1,get:r=>r.p0,cell:r=>fmt(r.p0)},
+    {k:"p30",h:"30%",n:1,get:r=>r.p30,cell:r=>fmt(r.p30)},
+    {k:"p100",h:"100%",n:1,get:r=>r.p100,cell:r=>fmt(r.p100)},
+    {k:"px",h:"Lain",n:1,get:r=>r.px,cell:r=>fmt(r.px)},
+    {k:"sel",h:"% selesai",n:1,get:r=>r.sel,cell:r=>r.t?r.sel.toLocaleString("id-ID",{maximumFractionDigits:0})+"%":"—"},
+    {k:"bar",h:"Komposisi progres",get:r=>r.sel,cell:r=>progBar(r)},
+  ];
+  if(LEVEL_OF(id)!=="kec") cols.splice(6,0,{k:"desaP",h:"Desa penerima",n:1,get:r=>r.desaP,cell:r=>`${fmt(r.desaP)} / ${fmt(r.desaN)}`});
+  const rows = sortRows(bspsRows(kids), cols, {k:"t",dir:"desc"});
+  box.innerHTML = tableHTML(cols, rows, r=>`data-go="${r.id}" class="${r.t?"":"zero"}"`);
+}
+function bspsChart(id, kids){
+  const base=themeBase();
+  if(!kids.length){ kids=[id]; }
+  let rows = bspsRows(kids).filter(r=>r.t>0).sort((a,b)=>a.t-b.t);
+  const zeros = kids.length - rows.length;
+  $("#pextra").innerHTML = zeros>0 ? `<span class="chip">${zeros} ${LEVEL_OF(kids[0])==="desa"?"desa":"wilayah"} tanpa penerima disembunyikan</span>` : "";
+  ch.setOption({...base, animationDurationUpdate:300,
+    grid:{left:8, right:56, top:36, bottom:8, containLabel:true},
+    legend:{top:4, left:0, icon:"roundRect", itemWidth:12, itemHeight:12, textStyle:{color:css("--ink-2")}, data:PROG.map(p=>p[1])},
+    tooltip:{...base.tooltip, trigger:"axis", axisPointer:{type:"shadow", shadowStyle:{color:css("--panel-2")}}, formatter:ps=>{
+      const r=rows[ps[0].dataIndex]; return `<b>${esc(r.name)}</b>`+tipRow(null,"Total",fmt(r.t)+" unit")+PROG.map(([k,lab,c])=>tipRow(css(c),lab,fmt(r[k]))).join(""); }},
+    xAxis:{type:"value", splitLine:{lineStyle:{color:css("--line")}}, axisLabel:{color:css("--muted")}},
+    yAxis:{type:"category", data:rows.map(r=>r.name), axisLine:{lineStyle:{color:css("--line-2")}}, axisTick:{show:false},
+      axisLabel:{color:css("--ink-2"), fontSize:12, width:170, overflow:"truncate"}},
+    series: PROG.map(([k,lab,c],i)=>({name:lab, type:"bar", stack:"t", barMaxWidth:22, data:rows.map(r=>r[k]),
+      itemStyle:{color:css(c), borderColor:css("--panel"), borderWidth:1, borderRadius: i===PROG.length-1?[0,4,4,0]:0},
+      label: i===PROG.length-1 ? {show:true, position:"right", formatter:p=>fmt(rows[p.dataIndex].t), color:css("--ink"), fontWeight:600, fontSize:12, distance:6} : {show:false},
+      emphasis:{focus:"series"}}))
+  }, true);
+  ch.off("click"); ch.on("click", p=>{ const r=rows[p.dataIndex]; if(r && r.id!==st.scope) go(r.id); });
+}
+function bspsSide(id, kids){
+  const top = bspsRows(kids).filter(r=>r.t).sort((a,b)=>b.t-a.t).slice(0,6);
+  const behind = bspsRows(kids).filter(r=>r.t>=5&&r.p0>0).sort((a,b)=>pct(b.p0,b.t)-pct(a.p0,a.t)).slice(0,4);
+  $("#side").innerHTML = `
+  <div class="panel"><h3>Keterangan progres fisik</h3><div class="legend">${PROG.map(([,lab,c])=>`<div><i class="sw" style="background:var(${c})"></i>${lab}</div>`).join("")}
+   ${st.view==="peta"?`<div style="margin-top:6px;color:var(--muted);font-size:.78rem">Warna kab/kota = jumlah unit. Lingkaran = ${LEVEL_OF(id)==="prov"?"kecamatan":"desa/kelurahan"}, ukuran sebanding jumlah unit, warna = progres dominan.</div>`:""}</div></div>
+  ${top.length?`<div class="panel"><h3>Penerima terbanyak</h3><div class="rank">${top.map(r=>`<button data-go="${r.id}"><span>${esc(r.name)}</span><span class="num">${fmt(r.t)}</span></button>`).join("")}</div></div>`:""}
+  ${behind.length?`<div class="panel"><h3>Perlu perhatian · porsi 0% tertinggi</h3><div class="rank">${behind.map(r=>`<button data-go="${r.id}"><span>${esc(r.name)}</span><span class="num up">${pct(r.p0,r.t).toLocaleString("id-ID",{maximumFractionDigits:0})}%</span></button>`).join("")}</div></div>`:""}
+  ${connPanel()}`;
+}
+
+/* ===== Modul Harga ===== */
+function renderHarga(){
+  const id=st.scope, l=LEVEL_OF(id), node=priceNode(id), vid=st.vid, v=VAR[vid];
+  const stt = node ? priceStat(node, vid) : null;
+  const prov = priceStat("75", vid);
+  const all = node ? Object.keys(S.series[node]).map(k=>priceStat(node,k)).filter(Boolean) : [];
+  const naik = all.filter(s=>s.d7>0.05).length, turun = all.filter(s=>s.d7<-0.05).length;
+  $("#kpis").innerHTML = kpiHTML([
+    {l:`${v.name} · terkini`, v: stt? Math.round(stt.v).toLocaleString("id-ID"):"–", u: stt?"Rp":"", s: stt?`Pantauan ${dLabel(stt.date)} 2026 · ${esc(nodeName(node))}`:"Tidak ada pasar pantauan"},
+    {l:"Perubahan 1 minggu", v: stt?deltaSpan(stt.d7):"–", s: stt?`5 hari pasar terakhir`:"&nbsp;"},
+    {l:"Perubahan 1 bulan", v: stt?deltaSpan(stt.d30):"–", s: `Sejak ${dLabel(S.dates[0])}`},
+    {l:"Komoditas naik / turun (1 minggu)", v: node?`<span class="up">${naik}</span> <small>/</small> <span class="down">${turun}</span>`:"–", s: node?`dari ${all.length} komoditas dipantau`:"&nbsp;"}
+  ]);
+  const noteTxt = !node ? `${nodeName(id)} belum memiliki pasar pantauan SP2KP. Data harga tersedia untuk Kab. Gorontalo dan Kota Gorontalo.`
+    : (l==="kec"||l==="desa") ? `Harga dipantau di tingkat pasar, bukan ${LEVEL_NAME[l].toLowerCase()}. Ditampilkan data ${nodeName(node)}.` : "";
+  $("#ptitle").textContent = st.view==="peta" ? `Harga ${v.name} per wilayah` : st.view==="tabel" ? `Seluruh komoditas · ${node?nodeName(node):nodeName(id)}` : `Tren harga ${v.name}`;
+  $("#psub").textContent = st.view==="tabel" ? "Klik baris untuk melihat tren komoditas tersebut." : `Rp per satuan · pantauan harian ${dLabel(S.dates[0])} – ${dLabel(S.dates[NDATE-1])} 2026`;
+  $("#pextra").innerHTML = noteTxt?`<span class="chip" title="${esc(noteTxt)}">Lihat catatan di samping</span>`:"";
+  if(st.view==="peta") hargaMap(id, vid);
+  else if(st.view==="tabel") hargaTable(node, vid);
+  else hargaChart(id, node, vid);
+  hargaSide(id, node, vid, noteTxt, prov);
+}
+function hargaMap(id, vid){
+  const base=themeBase(), l=LEVEL_OF(id);
+  const kv = DATA.kab.map(k=>{ const s=S.series[k.id]?priceStat(k.id,vid):null; return {name:k.id, value:s?s.v:null}; });
+  const vals = kv.map(k=>k.value).filter(x=>x!=null);
+  const pts = DATA.sp2kp.pasar.map(p=>{ const s=priceStat("P"+p.id,vid); return {id:"P"+p.id, name:p.name, value:[p.lng,p.lat,s?s.v:null], s}; });
+  const box = boxFor(l==="prov"?"75":(l==="pasar"?id:id.slice(0,4)));
+  const geo = {map:"gtlo", roam:true, nameProperty:"id", aspectScale:1, layoutCenter:["50%","50%"], layoutSize:"100%",
+    itemStyle:{areaColor:css("--nodata"), borderColor:css("--panel"), borderWidth:1.5}, emphasis:{itemStyle:{areaColor:css("--accent-soft")},label:{show:false}}, select:{disabled:true},
+    label:{show:true, formatter:p=>{ const k=kv.find(x=>x.name===p.name); return KAB[p.name].name.replace("Kab. ","")+(k&&k.value!=null?"\n"+rp(k.value):""); }, color:css("--ink-2"), fontSize:11, lineHeight:15}};
+  if(box) geo.boundingCoords=[[box[0],box[3]],[box[2],box[1]]];
+  const lo = vals.length?Math.min(...vals):0, hi = vals.length?Math.max(...vals):1;
+  ch.setOption({...base, animationDurationUpdate:400,
+    tooltip:{...base.tooltip, trigger:"item", formatter:p=>{
+      if(p.seriesType==="map"){ const s=S.series[p.name]?priceStat(p.name,vid):null; return `<b>${KAB[p.name].name}</b>`+(s?tipRow(null,VAR[vid].name,rp(s.v))+tipRow(null,"1 minggu",pctTxt(s.d7)):`<div style="color:${css("--muted")}">Belum ada pasar pantauan</div>`); }
+      const d=p.data; return `<b>${esc(d.name)}</b>`+(d.s?tipRow(null,VAR[vid].name,rp(d.s.v))+tipRow(null,"1 minggu",pctTxt(d.s.d7)):"<div>Komoditas tidak dipantau di pasar ini</div>"); }},
+    visualMap:{type:"continuous", min:lo, max:hi===lo?lo+1:hi, seriesIndex:0, left:16, bottom:16, itemWidth:12, itemHeight:100, text:[rp(hi),rp(lo)],
+      textStyle:{color:css("--muted"),fontSize:11}, inRange:{color:[css("--seq-2"),css("--seq-4")]}, outOfRange:{color:css("--nodata")}},
+    geo,
+    series:[
+      {type:"map", geoIndex:0, data:kv},
+      {type:"scatter", coordinateSystem:"geo", data:pts, symbol:"pin", symbolSize:28, zlevel:2,
+        itemStyle:{color:css("--accent"), borderColor:css("--panel"), borderWidth:1.5},
+        label:{show:true, position:"right", distance:4, formatter:p=>p.data.name.replace("Pasar ","")+(p.data.s?"  "+rp(p.data.s.v):""), color:css("--ink"), fontSize:11, fontWeight:600,
+          backgroundColor:css("--panel"), padding:[3,6], borderRadius:4, borderColor:css("--line-2"), borderWidth:1}, labelLayout:{hideOverlap:false, moveOverlap:"shiftY"}}
+    ]}, true);
+  ch.off("click"); ch.on("click", p=>{ if(p.seriesType==="map"){ go(p.name); } else if(p.data?.id){ go(p.data.id); } });
+}
+function spark(arr){ const xs=arr.filter(x=>x!=null); if(xs.length<2) return ""; const lo=Math.min(...xs), hi=Math.max(...xs), w=96, h=24;
+  const pts=arr.map((v,i)=>v==null?null:[i/(arr.length-1)*w, hi===lo?h/2:h-2-(v-lo)/(hi-lo)*(h-4)]).filter(Boolean);
+  const last=pts[pts.length-1];
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="var(--s1)" stroke-width="1.6" points="${pts.map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" ")}"/><circle cx="${last[0]}" cy="${last[1]}" r="2.6" fill="var(--s1)"/></svg>`; }
+function hargaTable(node, vid){
+  const box=$("#tablebox");
+  if(!node){ box.innerHTML=`<div class="empty">Wilayah ini belum memiliki pasar pantauan SP2KP.<br>Pilih Kab. Gorontalo atau Kota Gorontalo.</div>`; return; }
+  const rows = DATA.sp2kp.variants.map(v=>{ const s=priceStat(node,String(v.id)); if(!s) return null; const p=node!=="75"?priceStat("75",String(v.id)):null;
+    return {vid:String(v.id), name:v.name, group:v.group, order:v.order, ...s, vsProv: p&&p.v?pct(s.v-p.v,p.v):null}; }).filter(Boolean);
+  const cols=[
+    {k:"name",h:"Komoditas",get:r=>r.name,cell:r=>`${r.vid===vid?"<b>":""}${esc(r.name)}${r.vid===vid?"</b>":""}<span class="code">${esc(r.group)}</span>`},
+    {k:"v",h:"Harga terkini",n:1,get:r=>r.v,cell:r=>rp(r.v)},
+    {k:"d7",h:"1 minggu",n:1,get:r=>r.d7,cell:r=>deltaSpan(r.d7)},
+    {k:"d30",h:"1 bulan",n:1,get:r=>r.d30,cell:r=>deltaSpan(r.d30)},
+    {k:"spark",h:"Tren 23 hari",get:r=>r.d30,cell:r=>spark(r.arr)},
+  ];
+  if(node!=="75") cols.push({k:"vsProv",h:"vs rata-rata provinsi",n:1,get:r=>r.vsProv??0,cell:r=>r.vsProv==null?"—":`<span class="delta ${Math.abs(r.vsProv)<.05?"flat":r.vsProv>0?"up":"down"}">${pctTxt(r.vsProv)}</span>`});
+  const sorted = sortRows(rows, cols, {k:"order",dir:"asc"});
+  if(!st.sort) sorted.sort((a,b)=>a.order-b.order||a.name.localeCompare(b.name));
+  box.innerHTML = tableHTML(cols, sorted, r=>`data-vid="${r.vid}"`);
+}
+function hargaChart(id, node, vid){
+  const base=themeBase(), l=LEVEL_OF(id);
+  const lines=[];
+  if(node==="75"||!node){ lines.push(["7501","Kab. Gorontalo","--s1"],["7571","Kota Gorontalo","--s2"]); }
+  else if(node==="7571"){ lines.push(["7571","Kota Gorontalo (rata-rata)","--s1"],["P662","Pasar Sentral","--s2"],["P734","Pasar Liluwo","--s3"]); }
+  else if(node==="7501"||node==="P657"){ lines.push(["7501","Kab. Gorontalo · Pasar Kayubulan","--s1"]); }
+  else if(node.startsWith("P")){ lines.push([node,PASAR[node].name,"--s1"], [PASAR[node].kab, KAB[PASAR[node].kab].name, "--s2"]); }
+  const ser = lines.map(([n,name,c])=>({name, type:"line", data:(S.series[n]?.[vid]||[]), connectNulls:true, showSymbol:false, symbolSize:8,
+    lineStyle:{width:2,color:css(c)}, itemStyle:{color:css(c)}, emphasis:{focus:"series"},
+    endLabel:{show:lines.length<=3, formatter:p=>rp(p.value), color:css("--ink"), fontSize:12, fontWeight:600, distance:8}}));
+  ser.push({name:"Rata-rata provinsi", type:"line", data:S.series["75"]?.[vid]||[], connectNulls:true, showSymbol:false,
+    lineStyle:{width:1.5,type:[4,4],color:css("--sref")}, itemStyle:{color:css("--sref")}, z:1});
+  const allv = ser.flatMap(s=>s.data).filter(x=>x!=null); const lo=Math.min(...allv), hi=Math.max(...allv); const pad=(hi-lo)*.15||hi*.05;
+  ch.setOption({...base, animationDurationUpdate:300,
+    grid:{left:8,right:96,top:40,bottom:8,containLabel:true},
+    legend:{top:4,left:0,icon:"roundRect",itemWidth:14,itemHeight:4,textStyle:{color:css("--ink-2")}},
+    tooltip:{...base.tooltip, trigger:"axis", axisPointer:{type:"line",lineStyle:{color:css("--line-2")}}, formatter:ps=>`<b>${dLabel(S.dates[ps[0].dataIndex])} 2026</b>`+ps.filter(p=>p.value!=null).map(p=>tipRow(p.color,p.seriesName,rp(p.value))).join("")},
+    xAxis:{type:"category", boundaryGap:false, data:S.dates.map(dLabel), axisLine:{lineStyle:{color:css("--line-2")}}, axisTick:{show:false}, axisLabel:{color:css("--muted")}},
+    yAxis:{type:"value", min:Math.max(0,Math.floor((lo-pad)/500)*500), max:Math.ceil((hi+pad)/500)*500, splitLine:{lineStyle:{color:css("--line")}}, axisLabel:{color:css("--muted"), formatter:v=>v>=1000?(v/1000).toLocaleString("id-ID")+" rb":v}},
+    series:ser}, true);
+  ch.off("click");
+}
+function hargaSide(id, node, vid, noteTxt, prov){
+  const groups = {}; for(const v of DATA.sp2kp.variants){ (groups[v.group]=groups[v.group]||[]).push(v); }
+  const all = node? Object.keys(S.series[node]).map(k=>({k,s:priceStat(node,k)})).filter(x=>x.s) : [];
+  const movers = all.slice().sort((a,b)=>Math.abs(b.s.d7)-Math.abs(a.s.d7)).filter(x=>Math.abs(x.s.d7)>=.05).slice(0,6);
+  const kids = LEVEL_OF(id)==="prov" ? DATA.kab.map(k=>k.id) : LEVEL_OF(id)==="kab" ? DATA.sp2kp.pasar.filter(p=>p.kab===id).map(p=>"P"+p.id) : [];
+  $("#side").innerHTML = `
+  <div class="panel picker"><h3>Komoditas</h3>
+    <select id="vsel" aria-label="Pilih komoditas">${Object.entries(groups).map(([g,vs])=>`<optgroup label="${esc(g)}">${vs.map(v=>`<option value="${v.id}" ${String(v.id)===vid?"selected":""}>${esc(v.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+    ${prov&&node!=="75"?`<div style="font-size:.8rem;color:var(--ink-2)">Rata-rata provinsi: <b>${rp(prov.v)}</b></div>`:""}</div>
+  ${noteTxt?`<div class="note">${esc(noteTxt)}</div>`:""}
+  ${kids.length?`<div class="panel"><h3>${LEVEL_OF(id)==="prov"?"Kab/kota":"Pasar pantauan"}</h3><div class="rank">${kids.map(k=>{ const s=(S.series[k]||LEVEL_OF(k)==="pasar")?priceStat(k,vid):null; return `<button data-go="${k}"><span>${esc(nodeName(k))}</span><span class="num ${s?"":"flat"}">${s?rp(s.v):"tanpa pasar"}</span></button>`; }).join("")}</div></div>`:""}
+  ${movers.length?`<div class="panel"><h3>Bergerak terbesar · 1 minggu</h3><div class="rank">${movers.map(x=>`<button data-vid="${x.k}"><span>${esc(VAR[x.k].name)}</span>${deltaSpan(x.s.d7)}</button>`).join("")}</div></div>`:""}
+  ${connPanel()}`;
+  $("#vsel").onchange = e=>{ st.vid=e.target.value; render(); };
+}
+
+/* ---------- konektor ---------- */
+function connPanel(){ const m=DATA.meta, cs=m.connectors||[];
+  const fmtT = s => s ? new Date(s).toLocaleString("id-ID",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Asia/Makassar"})+" WITA" : "belum pernah";
+  const rows = cs.length ? cs.map(c=>`<i class="dot" style="background:${!c.aktif?"var(--line-2)":c.status==="gagal"?"var(--crit)":"var(--good)"}"></i><span>${c.url?`<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.nama)}</a>`:esc(c.nama)}<br><span style="color:var(--muted)">${c.driver==="http_json"?"API bertoken":"data terbuka"} · sinkron ${fmtT(c.terakhir_sinkron)}${c.status==="gagal"?" · gagal terakhir":""}</span></span>`).join("")
+    : `<i class="dot" style="background:var(--good)"></i><span>${esc(m.sources.bsps.name)}</span><i class="dot" style="background:var(--good)"></i><span>${esc(m.sources.sp2kp.name)}</span>`;
+  return `<div class="panel src"><h3>Konektor data</h3><div class="conn">${rows}</div>
+   <div style="color:var(--muted)">Kunci data: kode wilayah Kemendagri.</div></div>`; }
+
+/* ---------- pencarian ---------- */
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+const IDX = [];
+for(const k of DATA.kab) IDX.push({type:"Kab/Kota", id:k.id, label:k.name, path:"Provinsi Gorontalo", key:k.id});
+for(const k of DATA.kec) IDX.push({type:"Kecamatan", id:k.id, label:"Kec. "+k.name, path:KAB[k.kab].name, key:k.id});
+for(const d of DATA.desa){ const kc=KEC[d.kec]; IDX.push({type:"Desa/Kel.", id:d.id, label:d.name, path:(kc?"Kec. "+kc.name+" · ":"")+(KAB[d.id.slice(0,4)]?.name||""), key:d.id}); }
+for(const p of DATA.sp2kp.pasar) IDX.push({type:"Pasar", id:"P"+p.id, label:p.name, path:KAB[p.kab].name, key:""});
+for(const v of DATA.sp2kp.variants) IDX.push({type:"Komoditas", id:"V"+v.id, label:v.name, path:"Harga pangan · "+v.group, key:""});
+IDX.forEach(e=>{ e.n=norm(e.label); e.np=norm(e.path); e.nl=norm(e.label.replace(/^(Kec\.|Kab\.|Kota|Pasar( Rakyat)?)\s+/,"")); });
+function score(e, q, toks){
+  if(/^\d{2,}$/.test(q)) return e.key && e.key.startsWith(q) ? 1000-e.key.length : 0;
+  let s=0;
+  if(e.nl===q||e.n===q) s+=500; else if(e.nl.startsWith(q)) s+=300; else if(e.n.includes(q)) s+=180;
+  for(const t of toks){ if(e.n.split(" ").some(w=>w.startsWith(t))) s+=60; else if(e.n.includes(t)) s+=30; else if(e.np.includes(t)) s+=15; else {
+      let i=0; for(const ch of e.n){ if(ch===t[i]) i++; if(i===t.length) break; } if(i===t.length && t.length>=3) s+=8; else return 0; } }
+  if(s && e.type==="Kab/Kota") s+=20; if(s && e.type==="Kecamatan") s+=10;
+  return s;
+}
+let resSel=0, resList=[];
+function hl(label,q){ const toks=q.split(" ").filter(Boolean); let out=esc(label);
+  for(const t of toks){ const re=new RegExp("("+t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"); out=out.replace(re,"<mark>$1</mark>"); } return out; }
+function doSearch(){
+  const raw=$("#q").value, q=norm(raw), box=$("#results");
+  if(!q){ box.hidden=true; $("#searchbox").setAttribute("aria-expanded","false"); return; }
+  const toks=q.split(" ");
+  resList = IDX.map(e=>({e,s:score(e,q,toks)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).slice(0,14).map(x=>x.e);
+  resSel=0;
+  box.innerHTML = resList.length ? resList.map((e,i)=>`<div class="res" role="option" id="r${i}" aria-selected="${i===0}" data-i="${i}">
+     <span class="chip">${e.type}</span><span class="t">${hl(e.label,q)}</span><span class="k">${e.key||""}</span><span class="p">${esc(e.path)}${extraInfo(e)}</span></div>`).join("")
+    : `<div class="empty">Tidak ditemukan untuk “${esc(raw)}”. Coba nama desa, kecamatan, komoditas, atau kode wilayah.</div>`;
+  box.hidden=false; $("#searchbox").setAttribute("aria-expanded","true");
+}
+function extraInfo(e){
+  if(e.type==="Komoditas"){ const s=priceStat("75",e.id.slice(1)); return s?` · ${rp(s.v)}`:""; }
+  if(e.type==="Pasar") return "";
+  const a=bsps(e.id); return a.t?` · ${fmt(a.t)} unit BSPS`:"";
+}
+function pick(i){ const e=resList[i]; if(!e) return;
+  $("#q").value=""; $("#results").hidden=true; $("#searchbox").setAttribute("aria-expanded","false");
+  if(e.type==="Komoditas"){ st.vid=e.id.slice(1); st.module="harga"; if(st.view==="peta") st.view="grafik"; render(); return; }
+  if(e.type==="Pasar"){ st.module="harga"; }
+  go(e.id);
+}
+$("#q").addEventListener("input", doSearch);
+$("#q").addEventListener("keydown", ev=>{
+  const box=$("#results"); if(box.hidden) return;
+  if(ev.key==="ArrowDown"||ev.key==="ArrowUp"){ ev.preventDefault(); resSel=(resSel+(ev.key==="ArrowDown"?1:-1)+resList.length)%Math.max(1,resList.length);
+    box.querySelectorAll(".res").forEach((r,i)=>r.setAttribute("aria-selected",i===resSel)); box.querySelector("#r"+resSel)?.scrollIntoView({block:"nearest"}); }
+  else if(ev.key==="Enter"){ ev.preventDefault(); pick(resSel); }
+  else if(ev.key==="Escape"){ $("#q").value=""; doSearch(); }
+});
+$("#results").addEventListener("mousedown", ev=>{ const r=ev.target.closest(".res"); if(r){ ev.preventDefault(); pick(+r.dataset.i); } });
+$("#q").addEventListener("blur", ()=>setTimeout(()=>{ $("#results").hidden=true; },120));
+document.addEventListener("keydown", ev=>{ if(ev.key==="/" && document.activeElement!==$("#q") && !/input|select|textarea/i.test(document.activeElement.tagName)){ ev.preventDefault(); $("#q").focus(); } });
+
+/* ---------- interaksi umum ---------- */
+document.addEventListener("click", ev=>{
+  const g=ev.target.closest("[data-go]"); if(g){ go(g.dataset.go); return; }
+  const v=ev.target.closest("[data-vid]"); if(v){ st.vid=v.dataset.vid; st.module="harga"; st.view="grafik"; render(); return; }
+  const th=ev.target.closest("th[data-sort]"); if(th){ const k=th.dataset.sort; if(k==="bar"||k==="spark") return;
+    st.sort = st.sort&&st.sort.k===k ? {k, dir: st.sort.dir==="asc"?"desc":"asc"} : {k, dir: k==="name"?"asc":"desc"}; render(); }
+});
+$("#m-bsps").onclick=()=>{ st.module="bsps"; st.sort=null; render(); };
+$("#m-harga").onclick=()=>{ st.module="harga"; st.sort=null; render(); };
+for(const v of ["peta","tabel","grafik"]) $("#v-"+v).onclick=()=>{ st.view=v; render(); };
+
+/* Mode layar besar: tipografi membesar + rotasi otomatis tampilan tiap 25 detik */
+let wallTimer=null; const CYCLE=[["bsps","peta"],["bsps","grafik"],["harga","peta"],["harga","grafik"],["harga","tabel"]];
+$("#wallBtn").onclick=()=>{
+  const on = !document.documentElement.classList.contains("wall");
+  document.documentElement.classList.toggle("wall", on); $("#wallBtn").setAttribute("aria-pressed", on);
+  if(on){ try{ document.documentElement.requestFullscreen?.().catch(()=>{}); }catch(e){}
+    let i=0; wallTimer=setInterval(()=>{ i=(i+1)%CYCLE.length; [st.module,st.view]=CYCLE[i]; render(); },25000); }
+  else { clearInterval(wallTimer); try{ document.fullscreenElement && document.exitFullscreen(); }catch(e){} }
+  setTimeout(()=>{ ch.resize(); render(); },150);
+};
+
+$("#foot").innerHTML = `<span>BSPS: <a href="${DATA.meta.sources.bsps.url}" target="_blank" rel="noopener" style="color:inherit">${esc(DATA.meta.sources.bsps.name)}</a>, agregat per desa, tanpa data perorangan.</span>
+ <span>Harga: <a href="${DATA.meta.sources.sp2kp.url}" target="_blank" rel="noopener" style="color:inherit">SP2KP Kemendag</a>, rata-rata harian pasar pantauan.</span>
+ <span>Batas wilayah: BIG (disederhanakan). Kode wilayah: Kemendagri.</span>`;
+
+/* tema berubah → gambar ulang grafik dengan token baru */
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>render());
+new MutationObserver(()=>render()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+render();
+}
+</script>
+</body>
+</html>
